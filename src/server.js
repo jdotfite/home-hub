@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { createTask, updateTask, completeTask, listTasks, reorderTasks, listProjects, einkToday } from './tasks.js';
 import { createGroceryItem, listGroceryItems, updateGroceryItem, clearCheckedGroceryItems, quickAdd } from './grocery.js';
 import { runTodoCommand } from './discordParser.js';
+import { alexaRoute } from './alexa.js';
 
 export function createApp() {
   const app = express();
@@ -68,6 +69,8 @@ export function createApp() {
   app.post('/api/discord/command', (req, res, next) => {
     try { res.json(runTodoCommand(req.body.command)); } catch (err) { next(err); }
   });
+
+  app.post('/api/alexa', alexaRoute);
 
   app.use((err, _req, res, _next) => {
     res.status(err.status || 500).json({ error: err.message || 'Server error' });

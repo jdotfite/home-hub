@@ -56,16 +56,45 @@ The numeric IDs shown in list responses are display indexes for the filtered res
 - `POST /api/tasks/:id/complete`
 - `POST /api/tasks/reorder`
 - `GET /api/projects`
+- `GET /api/grocery`
+- `POST /api/grocery`
+- `PATCH /api/grocery/:id`
+- `POST /api/grocery/clear-checked`
+- `POST /api/quick-add`
 - `GET /api/eink/today`
 - `GET /api/eink/today.svg`
+- `POST /api/alexa`
 
 ## Web pages
 
 - `/inbox`
 - `/today`
+- `/future`
+- `/grocery`
 - `/projects`
 - `/eink`
 - `/done`
+
+## Vercel, PWA, and Alexa
+
+This repo includes a Vercel serverless entrypoint at `api/index.js` plus `vercel.json` rewrites for `/api/*` and the SPA routes.
+
+The web app has baseline PWA installability:
+
+- `public/manifest.webmanifest`
+- `public/service-worker.js`
+- `public/icon.svg`
+
+Alexa can call `POST /api/alexa`. If `ALEXA_API_TOKEN` is set, Alexa requests must include the same value in the `x-alexa-token` header or `?token=` query parameter.
+
+Supported initial Alexa intent names:
+
+- `AddGroceryItemIntent` with `Item` and optional `Quantity` slots
+- `AddTodoIntent` with `Task` or `Item` slot
+- `ListGroceryIntent`
+- `ListTodosIntent`
+
+Next deployment step: replace local JSON file storage with durable cloud storage before relying on Vercel for production data.
 
 ## E-ink JSON
 
