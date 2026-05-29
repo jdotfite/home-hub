@@ -26,7 +26,7 @@ test('pwa assets are declared from the app shell', () => {
 });
 
 test('alexa endpoint requires token and can add a grocery item', async () => {
-  resetForTests();
+  await resetForTests();
   process.env.ALEXA_API_TOKEN = 'test-token';
   const app = createApp();
   const server = await new Promise(resolve => {

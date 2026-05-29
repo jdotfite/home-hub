@@ -33,11 +33,11 @@ function sortTasks(a, b) {
     || String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
 }
 
-export function createTask(input) {
+export async function createTask(input) {
   const title = String(input.title || '').trim();
   if (!title) throw Object.assign(new Error('Task title is required'), { status: 400 });
   const project = String(input.project || 'inbox').trim().toLowerCase() || 'inbox';
-  const store = readStore();
+  const store = await readStore();
   const openPriorities = store.tasks.filter(t => t.status === 'open').map(t => Number(t.priority || 0));
   const nextPriority = (openPriorities.length ? Math.max(...openPriorities) : 0) + 1000;
   const timestamp = nowIso();
@@ -57,17 +57,17 @@ export function createTask(input) {
     completedAt: null,
   };
   store.tasks.push(task);
-  writeStore(store);
+  await writeStore(store);
   return normalizeTask(task);
 }
 
-export function getTask(id) {
-  return normalizeTask(readStore().tasks.find(t => t.id === id));
+export async function getTask(id) {
+  return normalizeTask((await readStore()).tasks.find(t => t.id === id));
 }
 
-export function listTasks(filters = {}) {
+export async function listTasks(filters = {}) {
   const today = todayIsoDate();
-  let tasks = readStore().tasks.map(normalizeTask);
+  let tasks = (await readStore()).tasks.map(normalizeTask);
   if (filters.status) tasks = tasks.filter(t => t.status === filters.status);
   if (filters.project) tasks = tasks.filter(t => t.project === String(filters.project).toLowerCase());
   if (filters.view === 'today') {
@@ -80,8 +80,8 @@ export function listTasks(filters = {}) {
   return tasks.sort(sortTasks);
 }
 
-export function updateTask(id, patch) {
-  const store = readStore();
+export async function updateTask(id, patch) {
+  const store = await readStore();
   const index = store.tasks.findIndex(t => t.id === id);
   if (index === -1) throw Object.assign(new Error('Task not found'), { status: 404 });
   const current = store.tasks[index];
@@ -99,7 +99,7 @@ export function updateTask(id, patch) {
   }
   if (!changed) return normalizeTask(current);
   current.updatedAt = nowIso();
-  writeStore(store);
+  await writeStore(store);
   return normalizeTask(current);
 }
 
@@ -113,8 +113,8 @@ function nextDueDate(dueDate, recurrence) {
   return date.toISOString().slice(0, 10);
 }
 
-export function completeTask(id) {
-  const store = readStore();
+export async function completeTask(id) {
+  const store = await readStore();
   const task = store.tasks.find(t => t.id === id);
   if (!task) throw Object.assign(new Error('Task not found'), { status: 404 });
   const timestamp = nowIso();
@@ -136,13 +136,13 @@ export function completeTask(id) {
       completedAt: null,
     });
   }
-  writeStore(store);
+  await writeStore(store);
   return normalizeTask(task);
 }
 
-export function reorderTasks(ids) {
+export async function reorderTasks(ids) {
   if (!Array.isArray(ids)) throw Object.assign(new Error('ids must be an array'), { status: 400 });
-  const store = readStore();
+  const store = await readStore();
   ids.forEach((id, index) => {
     const task = store.tasks.find(t => t.id === id);
     if (task) {
@@ -150,13 +150,13 @@ export function reorderTasks(ids) {
       task.updatedAt = nowIso();
     }
   });
-  writeStore(store);
+  await writeStore(store);
   return listTasks({ status: 'open' });
 }
 
-export function listProjects() {
+export async function listProjects() {
   const counts = new Map();
-  for (const task of readStore().tasks) {
+  for (const task of (await readStore()).tasks) {
     if (task.status !== 'open') continue;
     const project = task.project || 'inbox';
     counts.set(project, (counts.get(project) || 0) + 1);
@@ -164,8 +164,8 @@ export function listProjects() {
   return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([project, count]) => ({ project, count }));
 }
 
-export function einkToday() {
-  const rows = listTasks({ view: 'today' }).filter(t => t.showOnEink).slice(0, 12);
+export async function einkToday() {
+  const rows = (await listTasks({ view: 'today' })).filter(t => t.showOnEink).slice(0, 12);
   return {
     title: 'Today',
     tasks: rows.filter(t => !t.waiting).slice(0, 8).map(t => t.title),

@@ -41,7 +41,7 @@ function guessCategory(title) {
   return 'uncategorized';
 }
 
-export function createGroceryItem(input) {
+export async function createGroceryItem(input) {
   const parsed = parseQuantity(input.title || '');
   const title = String(parsed.title || '').trim();
   if (!title) throw Object.assign(new Error('Grocery item title is required'), { status: 400 });
@@ -59,22 +59,22 @@ export function createGroceryItem(input) {
     updatedAt: timestamp,
     checkedAt: input.checked ? timestamp : null,
   };
-  const store = readStore();
+  const store = await readStore();
   ensureGrocery(store).push(item);
-  writeStore(store);
+  await writeStore(store);
   return normalizeItem(item);
 }
 
-export function listGroceryItems(filters = {}) {
-  let items = ensureGrocery(readStore()).map(normalizeItem);
+export async function listGroceryItems(filters = {}) {
+  let items = ensureGrocery(await readStore()).map(normalizeItem);
   if (filters.checked !== undefined) items = items.filter(i => i.checked === (filters.checked === true || filters.checked === 'true'));
   if (filters.store) items = items.filter(i => i.store === String(filters.store).toLowerCase());
   if (filters.category) items = items.filter(i => i.category === String(filters.category).toLowerCase());
   return items.sort((a, b) => Number(a.checked) - Number(b.checked) || a.category.localeCompare(b.category) || a.createdAt.localeCompare(b.createdAt));
 }
 
-export function updateGroceryItem(id, patch) {
-  const store = readStore();
+export async function updateGroceryItem(id, patch) {
+  const store = await readStore();
   const items = ensureGrocery(store);
   const item = items.find(i => i.id === id);
   if (!item) throw Object.assign(new Error('Grocery item not found'), { status: 404 });
@@ -87,15 +87,15 @@ export function updateGroceryItem(id, patch) {
     item.checkedAt = item.checked ? nowIso() : null;
   }
   item.updatedAt = nowIso();
-  writeStore(store);
+  await writeStore(store);
   return normalizeItem(item);
 }
 
-export function clearCheckedGroceryItems() {
-  const store = readStore();
+export async function clearCheckedGroceryItems() {
+  const store = await readStore();
   const before = ensureGrocery(store).length;
   store.groceryItems = store.groceryItems.filter(i => !i.checked);
-  writeStore(store);
+  await writeStore(store);
   return { removed: before - store.groceryItems.length };
 }
 
@@ -105,19 +105,19 @@ function tomorrow() {
   return d.toISOString().slice(0, 10);
 }
 
-export function quickAdd(text, options = {}) {
+export async function quickAdd(text, options = {}) {
   let raw = String(text || '').trim();
   if (!raw) throw Object.assign(new Error('Text is required'), { status: 400 });
   const lower = raw.toLowerCase();
   if (lower.startsWith('walmart ') || lower.startsWith('grocery ')) {
     const store = lower.startsWith('walmart ') ? 'walmart' : (options.store || 'walmart');
     raw = raw.replace(/^(walmart|grocery)\s+/i, '');
-    return { type: 'grocery', item: createGroceryItem({ title: raw, store, source: options.source || 'quick-add', addedBy: options.addedBy || '' }) };
+    return { type: 'grocery', item: await createGroceryItem({ title: raw, store, source: options.source || 'quick-add', addedBy: options.addedBy || '' }) };
   }
   let dueDate = null;
   if (lower.startsWith('tomorrow ')) {
     raw = raw.replace(/^tomorrow\s+/i, '');
     dueDate = tomorrow();
   }
-  return { type: 'task', task: createTask({ title: raw, dueDate, project: options.project || 'inbox' }) };
+  return { type: 'task', task: await createTask({ title: raw, dueDate, project: options.project || 'inbox' }) };
 }

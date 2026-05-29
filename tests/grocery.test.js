@@ -3,33 +3,33 @@ import assert from 'node:assert/strict';
 import { resetForTests } from '../src/db.js';
 import { createGroceryItem, listGroceryItems, updateGroceryItem, clearCheckedGroceryItems, quickAdd } from '../src/grocery.js';
 
-test('grocery items can be created, listed, checked, and cleared', () => {
-  resetForTests();
-  const milk = createGroceryItem({ title: 'milk', store: 'walmart', quantity: '2' });
-  createGroceryItem({ title: 'bananas', category: 'produce' });
+test('grocery items can be created, listed, checked, and cleared', async () => {
+  await resetForTests();
+  const milk = await createGroceryItem({ title: 'milk', store: 'walmart', quantity: '2' });
+  await createGroceryItem({ title: 'bananas', category: 'produce' });
 
-  let items = listGroceryItems();
+  let items = await listGroceryItems();
   assert.equal(items.length, 2);
   assert.equal(items[0].title, 'milk');
   assert.equal(items[0].store, 'walmart');
   assert.equal(items[0].quantity, '2');
   assert.equal(items[0].checked, false);
 
-  const checked = updateGroceryItem(milk.id, { checked: true });
+  const checked = await updateGroceryItem(milk.id, { checked: true });
   assert.equal(checked.checked, true);
 
-  const cleared = clearCheckedGroceryItems();
+  const cleared = await clearCheckedGroceryItems();
   assert.equal(cleared.removed, 1);
-  items = listGroceryItems();
+  items = await listGroceryItems();
   assert.deepEqual(items.map(i => i.title), ['bananas']);
 });
 
-test('quickAdd routes grocery and walmart text to grocery items', () => {
-  resetForTests();
+test('quickAdd routes grocery and walmart text to grocery items', async () => {
+  await resetForTests();
 
-  const walmart = quickAdd('walmart 2 paper towels');
-  const grocery = quickAdd('grocery bananas');
-  const todo = quickAdd('tomorrow call dentist');
+  const walmart = await quickAdd('walmart 2 paper towels');
+  const grocery = await quickAdd('grocery bananas');
+  const todo = await quickAdd('tomorrow call dentist');
 
   assert.equal(walmart.type, 'grocery');
   assert.equal(walmart.item.store, 'walmart');

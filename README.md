@@ -94,7 +94,16 @@ Supported initial Alexa intent names:
 - `ListGroceryIntent`
 - `ListTodosIntent`
 
-Next deployment step: replace local JSON file storage with durable cloud storage before relying on Vercel for production data.
+Next deployment step: configure durable Vercel KV storage before relying on Vercel for production data.
+
+Set these environment variables in Vercel:
+
+- `KV_REST_API_URL`
+- `KV_REST_API_TOKEN`
+- Optional: `TODO_KV_KEY` defaults to `todo:store`
+- Optional: `ALEXA_API_TOKEN` protects Alexa requests
+
+Without KV env vars, the app falls back to local JSON storage for desktop/local development.
 
 ## E-ink JSON
 

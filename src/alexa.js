@@ -28,7 +28,7 @@ function listForSpeech(items, noun) {
   return `Your ${noun} list has ${names.join(', ')}.`;
 }
 
-export function handleAlexaRequest(body = {}) {
+export async function handleAlexaRequest(body = {}) {
   const request = body.request || {};
   if (request.type === 'LaunchRequest') {
     return speech('Todo is ready. You can say add milk to grocery, or what is on my todo list.', false);
@@ -39,29 +39,29 @@ export function handleAlexaRequest(body = {}) {
     const item = slot(intent, 'Item');
     const quantity = slot(intent, 'Quantity');
     if (!item) return speech('What grocery item should I add?', false);
-    const grocery = createGroceryItem({ title: item, quantity, store: 'walmart', source: 'alexa' });
+    const grocery = await createGroceryItem({ title: item, quantity, store: 'walmart', source: 'alexa' });
     return speech(`Added ${grocery.quantity ? grocery.quantity + ' ' : ''}${grocery.title} to your grocery list.`);
   }
 
   if (request.type === 'IntentRequest' && intent.name === 'AddTodoIntent') {
     const task = slot(intent, 'Task') || slot(intent, 'Item');
     if (!task) return speech('What todo should I add?', false);
-    const result = quickAdd(task, { source: 'alexa' });
+    const result = await quickAdd(task, { source: 'alexa' });
     return speech(result.type === 'grocery' ? `Added ${result.item.title} to your grocery list.` : `Added ${result.task.title} to your todo list.`);
   }
 
   if (request.type === 'IntentRequest' && intent.name === 'ListGroceryIntent') {
-    return speech(listForSpeech(listGroceryItems({ checked: false }), 'grocery'));
+    return speech(listForSpeech(await listGroceryItems({ checked: false }), 'grocery'));
   }
 
   if (request.type === 'IntentRequest' && intent.name === 'ListTodosIntent') {
-    return speech(listForSpeech(listTasks({ view: 'today', status: 'open' }), 'todo'));
+    return speech(listForSpeech(await listTasks({ view: 'today', status: 'open' }), 'todo'));
   }
 
   return speech('I can add todos, add groceries, or read your lists.', false);
 }
 
-export function alexaRoute(req, res) {
+export async function alexaRoute(req, res) {
   if (!requireAlexaToken(req)) return res.status(401).json({ error: 'Unauthorized' });
-  res.json(handleAlexaRequest(req.body));
+  res.json(await handleAlexaRequest(req.body));
 }

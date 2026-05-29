@@ -16,58 +16,66 @@ export function createApp() {
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-  app.get('/api/tasks', (req, res) => {
-    res.json({ tasks: listTasks(req.query) });
+  app.get('/api/tasks', async (req, res, next) => {
+    try { res.json({ tasks: await listTasks(req.query) }); } catch (err) { next(err); }
   });
 
-  app.post('/api/tasks', (req, res, next) => {
-    try { res.status(201).json({ task: createTask(req.body) }); } catch (err) { next(err); }
+  app.post('/api/tasks', async (req, res, next) => {
+    try { res.status(201).json({ task: await createTask(req.body) }); } catch (err) { next(err); }
   });
 
-  app.patch('/api/tasks/:id', (req, res, next) => {
-    try { res.json({ task: updateTask(req.params.id, req.body) }); } catch (err) { next(err); }
+  app.patch('/api/tasks/:id', async (req, res, next) => {
+    try { res.json({ task: await updateTask(req.params.id, req.body) }); } catch (err) { next(err); }
   });
 
-  app.post('/api/tasks/:id/complete', (req, res, next) => {
-    try { res.json({ task: completeTask(req.params.id) }); } catch (err) { next(err); }
+  app.post('/api/tasks/:id/complete', async (req, res, next) => {
+    try { res.json({ task: await completeTask(req.params.id) }); } catch (err) { next(err); }
   });
 
-  app.post('/api/tasks/reorder', (req, res, next) => {
-    try { res.json({ tasks: reorderTasks(req.body.ids) }); } catch (err) { next(err); }
+  app.post('/api/tasks/reorder', async (req, res, next) => {
+    try { res.json({ tasks: await reorderTasks(req.body.ids) }); } catch (err) { next(err); }
   });
 
-  app.get('/api/projects', (_req, res) => res.json({ projects: listProjects() }));
-
-  app.get('/api/grocery', (req, res) => res.json({ items: listGroceryItems(req.query) }));
-
-  app.post('/api/grocery', (req, res, next) => {
-    try { res.status(201).json({ item: createGroceryItem(req.body) }); } catch (err) { next(err); }
+  app.get('/api/projects', async (_req, res, next) => {
+    try { res.json({ projects: await listProjects() }); } catch (err) { next(err); }
   });
 
-  app.patch('/api/grocery/:id', (req, res, next) => {
-    try { res.json({ item: updateGroceryItem(req.params.id, req.body) }); } catch (err) { next(err); }
+  app.get('/api/grocery', async (req, res, next) => {
+    try { res.json({ items: await listGroceryItems(req.query) }); } catch (err) { next(err); }
   });
 
-  app.post('/api/grocery/clear-checked', (_req, res, next) => {
-    try { res.json(clearCheckedGroceryItems()); } catch (err) { next(err); }
+  app.post('/api/grocery', async (req, res, next) => {
+    try { res.status(201).json({ item: await createGroceryItem(req.body) }); } catch (err) { next(err); }
   });
 
-  app.post('/api/quick-add', (req, res, next) => {
-    try { res.status(201).json(quickAdd(req.body.text, req.body)); } catch (err) { next(err); }
+  app.patch('/api/grocery/:id', async (req, res, next) => {
+    try { res.json({ item: await updateGroceryItem(req.params.id, req.body) }); } catch (err) { next(err); }
   });
 
-  app.get('/api/eink/today', (_req, res) => res.json(einkToday()));
-
-  app.get('/api/eink/today.svg', (_req, res) => {
-    const data = einkToday();
-    const lines = [data.title.toUpperCase(), ...data.tasks.map(t => `□ ${t}`), ...(data.waiting.length ? ['', 'WAITING', ...data.waiting.map(t => `• ${t}`)] : [])];
-    const safe = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-    const text = lines.map((line, i) => `<text x="48" y="${70 + i * 42}" class="${i === 0 || line === 'WAITING' ? 'heading' : 'item'}">${safe(line)}</text>`).join('\n');
-    res.type('image/svg+xml').send(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="480" viewBox="0 0 800 480"><style>rect{fill:#fff}.heading{font:bold 38px sans-serif}.item{font:30px sans-serif}</style><rect width="800" height="480"/>${text}</svg>`);
+  app.post('/api/grocery/clear-checked', async (_req, res, next) => {
+    try { res.json(await clearCheckedGroceryItems()); } catch (err) { next(err); }
   });
 
-  app.post('/api/discord/command', (req, res, next) => {
-    try { res.json(runTodoCommand(req.body.command)); } catch (err) { next(err); }
+  app.post('/api/quick-add', async (req, res, next) => {
+    try { res.status(201).json(await quickAdd(req.body.text, req.body)); } catch (err) { next(err); }
+  });
+
+  app.get('/api/eink/today', async (_req, res, next) => {
+    try { res.json(await einkToday()); } catch (err) { next(err); }
+  });
+
+  app.get('/api/eink/today.svg', async (_req, res, next) => {
+    try {
+      const data = await einkToday();
+      const lines = [data.title.toUpperCase(), ...data.tasks.map(t => `□ ${t}`), ...(data.waiting.length ? ['', 'WAITING', ...data.waiting.map(t => `• ${t}`)] : [])];
+      const safe = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const text = lines.map((line, i) => `<text x="48" y="${70 + i * 42}" class="${i === 0 || line === 'WAITING' ? 'heading' : 'item'}">${safe(line)}</text>`).join('\n');
+      res.type('image/svg+xml').send(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="480" viewBox="0 0 800 480"><style>rect{fill:#fff}.heading{font:bold 38px sans-serif}.item{font:30px sans-serif}</style><rect width="800" height="480"/>${text}</svg>`);
+    } catch (err) { next(err); }
+  });
+
+  app.post('/api/discord/command', async (req, res, next) => {
+    try { res.json(await runTodoCommand(req.body.command)); } catch (err) { next(err); }
   });
 
   app.post('/api/alexa', alexaRoute);

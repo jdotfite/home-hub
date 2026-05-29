@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { resetForTests } from '../src/db.js';
 import { createApp } from '../src/server.js';
 
-function start() {
-  resetForTests();
+async function start() {
+  await resetForTests();
   const app = createApp();
   return new Promise(resolve => {
     const server = app.listen(0, () => resolve({ server, base: `http://127.0.0.1:${server.address().port}` }));

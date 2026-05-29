@@ -1,38 +1,77 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
 export const dbPath = resolve(process.env.TODO_DB || './data/todo.json');
-mkdirSync(dirname(dbPath), { recursive: true });
+const kvKey = process.env.TODO_KV_KEY || 'todo:store';
 
 function emptyStore() {
-  return { tasks: [] };
+  return { tasks: [], groceryItems: [] };
 }
 
-export function migrate() {
+function normalizeStore(store) {
+  return {
+    ...emptyStore(),
+    ...(store && typeof store === 'object' ? store : {}),
+    tasks: Array.isArray(store?.tasks) ? store.tasks : [],
+    groceryItems: Array.isArray(store?.groceryItems) ? store.groceryItems : [],
+  };
+}
+
+function kvEnabled() {
+  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+}
+
+async function kvRequest(command, ...args) {
+  const base = process.env.KV_REST_API_URL.replace(/\/$/, '');
+  const path = [command, ...args.map(arg => encodeURIComponent(arg))].join('/');
+  const res = await fetch(`${base}/${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}` },
+  });
+  if (!res.ok) throw new Error(`KV ${command} failed: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+export async function migrate() {
+  if (kvEnabled()) {
+    const { result } = await kvRequest('get', kvKey);
+    if (!result) await writeStore(emptyStore());
+    return;
+  }
   mkdirSync(dirname(dbPath), { recursive: true });
-  if (!existsSync(dbPath)) writeStore(emptyStore());
+  if (!existsSync(dbPath)) await writeStore(emptyStore());
 }
 
-export function readStore() {
-  migrate();
+export async function readStore() {
   try {
-    const parsed = JSON.parse(readFileSync(dbPath, 'utf8'));
-    if (!parsed || !Array.isArray(parsed.tasks)) return emptyStore();
-    return parsed;
+    if (kvEnabled()) {
+      const { result } = await kvRequest('get', kvKey);
+      if (!result) return emptyStore();
+      return normalizeStore(typeof result === 'string' ? JSON.parse(result) : result);
+    }
+    await migrate();
+    return normalizeStore(JSON.parse(await readFile(dbPath, 'utf8')));
   } catch {
     return emptyStore();
   }
 }
 
-export function writeStore(store) {
+export async function writeStore(store) {
+  const normalized = normalizeStore(store);
+  if (kvEnabled()) {
+    await kvRequest('set', kvKey, JSON.stringify(normalized));
+    return;
+  }
   mkdirSync(dirname(dbPath), { recursive: true });
   const tmp = `${dbPath}.tmp`;
-  writeFileSync(tmp, JSON.stringify(store, null, 2));
-  writeFileSync(dbPath, JSON.stringify(store, null, 2));
+  const json = JSON.stringify(normalized, null, 2);
+  await writeFile(tmp, json);
+  await writeFile(dbPath, json);
 }
 
-export function resetForTests() {
-  writeStore(emptyStore());
+export async function resetForTests() {
+  await writeStore(emptyStore());
 }
 
 export function nowIso() {
@@ -43,4 +82,4 @@ export function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-migrate();
+await migrate();
