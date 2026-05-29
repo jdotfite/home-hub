@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Todo</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/today" aria-label="Todo home">
+      <span class="brand-mark" aria-hidden="true">✓</span>
+      <span>Todo</span>
+    </a>
+    <nav aria-label="Main views">
+      <a href="/inbox" data-nav="/inbox">Inbox</a>
+      <a href="/today" data-nav="/today">Today</a>
+      <a href="/future" data-nav="/future">Future</a>
+      <a href="/grocery" data-nav="/grocery">Grocery</a>
+      <a href="/projects" data-nav="/projects">Projects</a>
+      <a href="/eink" data-nav="/eink">E-ink</a>
+      <a href="/done" data-nav="/done">Done</a>
+    </nav>
+  </header>
+  <main>
+    <section class="composer" aria-label="Add a new task">
+      <input id="new-title" placeholder="Add a task…" autofocus />
+      <input id="new-project" placeholder="project" value="inbox" list="project-options" />
+      <input id="new-due" type="date" aria-label="Due date" />
+      <select id="new-recurrence" aria-label="Repeat">
+        <option value="none">No repeat</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+      </select>
+      <button id="add">Add</button>
+      <datalist id="project-options"></datalist>
+    </section>
+    <section id="content"></section>
+  </main>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
