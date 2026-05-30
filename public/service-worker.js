@@ -1,4 +1,4 @@
-const CACHE_NAME = 'todo-app-v1';
+const CACHE_NAME = 'todo-app-v2-dark-clean';
 const APP_SHELL = [
   '/',
   '/today',

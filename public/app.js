@@ -67,7 +67,8 @@ function summaryCards(tasks) {
 }
 
 function viewHeader(title, subtitle = '', showFilters = false) {
-  return `<div class="view-header"><div><p class="eyebrow">Personal tasks</p><h2>${escapeHtml(title)}</h2>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div>${showFilters ? filterBar() : ''}</div>`;
+  const mobileTitle = title === 'Today' ? 'Today’s Task' : title;
+  return `<div class="view-header"><div><p class="eyebrow">Personal tasks</p><h2>${escapeHtml(title)}</h2><h2 class="mobile-page-title">${escapeHtml(mobileTitle)}</h2>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div>${showFilters ? filterBar() : ''}</div>`;
 }
 
 function filterBar() {
@@ -110,28 +111,34 @@ function labelizeProject(project) {
 }
 
 function taskHtml(t) {
-  const due = t.dueDate ? `<span class="badge due">${escapeHtml(t.dueDate)}</span>` : '<span class="badge muted">No date</span>';
-  const recur = t.recurrence && t.recurrence !== 'none' ? `<span class="badge recur">${escapeHtml(t.recurrence)}</span>` : '';
+  const dueCell = t.dueDate ? `<span class="due-text">${escapeHtml(t.dueDate)}</span>` : '';
+  const recur = t.recurrence && t.recurrence !== 'none' ? `<span class="meta-token">↻ ${escapeHtml(t.recurrence)}</span>` : '';
   const status = t.status === 'done' ? ' done' : '';
+  const project = t.project || 'inbox';
+  const flags = [
+    t.showOnEink ? '<span class="meta-token">e-ink</span>' : '',
+    t.waiting ? '<span class="meta-token waiting">waiting</span>' : '',
+    t.status === 'done' ? '<span class="meta-token done">done</span>' : '',
+  ].join('');
   return `<article class="task${status}" draggable="true" data-id="${t.id}">
     <button class="complete" title="Complete" aria-label="Complete task">Complete</button>
     <div class="task-main">
       <strong class="task-title" contenteditable="true" data-field="title">${escapeHtml(t.title)}</strong>
-      <div class="meta"><span class="badge project">${escapeHtml(t.project)}</span>${due}${recur}${t.status === 'done' ? '<span class="badge done">done</span>' : ''}${t.showOnEink ? '<span class="badge">e-ink</span>' : ''}${t.waiting ? '<span class="badge waiting">waiting</span>' : ''}</div>
+      <div class="meta"><span class="meta-token project">${escapeHtml(labelizeProject(project))}</span>${recur}${flags}</div>
       <details class="task-editors">
-        <summary>Edit details</summary>
+        <summary>Edit</summary>
         <div class="editor-grid">
           <label>Due <input class="due-input" type="date" value="${escapeHtml(t.dueDate || '')}"></label>
-          <label>Project <input class="project-input" value="${escapeHtml(t.project)}" list="project-options"></label>
+          <label>Project <input class="project-input" value="${escapeHtml(project)}" list="project-options"></label>
           <label>Repeat <select class="recurrence-input">${['none','daily','weekly','monthly'].map(r => `<option value="${r}" ${t.recurrence === r ? 'selected' : ''}>${r === 'none' ? 'none' : r}</option>`).join('')}</select></label>
         </div>
       </details>
     </div>
-    <div class="task-due-cell">${due}</div>
+    <div class="task-due-cell">${dueCell}</div>
     <div class="task-actions">
-      <button class="waiting-toggle ${t.waiting ? 'active' : ''}">${t.waiting ? 'Waiting' : 'Wait'}</button>
-      <button class="eink-toggle">${t.showOnEink ? 'Hide e-ink' : 'E-ink'}</button>
-      <span class="drag-handle" title="Drag to reorder">☰</span>
+      <button class="waiting-toggle ${t.waiting ? 'active' : ''}" title="Toggle waiting">${t.waiting ? 'Waiting' : 'Wait'}</button>
+      <button class="eink-toggle" title="Toggle e-ink">${t.showOnEink ? 'Hide e-ink' : 'E-ink'}</button>
+      <span class="task-menu drag-handle" title="Drag to reorder">⋯</span>
     </div>
   </article>`;
 }

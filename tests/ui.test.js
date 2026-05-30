@@ -32,3 +32,15 @@ test('stylesheet includes responsive mobile card UI and desktop task table affor
   assert.match(css, /@media \(max-width: 720px\)/);
   assert.match(css, /\.fab-add/);
 });
+
+test('mobile stylesheet follows the clean dark reference hierarchy', () => {
+  const css = readFileSync('public/styles.css', 'utf8');
+
+  assert.match(css, /Dark clean mobile direction/);
+  assert.match(css, /--lemon: #ffd60a/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*body \{ background: #111;/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*\.composer:not\(\.is-open\) input:not\(#new-title\)/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*\.fab-add::before/);
+  assert.match(css, /\.task-menu/);
+  assert.match(css, /\.mobile-add-panel/);
+});

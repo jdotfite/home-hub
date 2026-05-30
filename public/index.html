@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Todo</title>
   <link rel="manifest" href="/manifest.webmanifest" />
-  <meta name="theme-color" content="#2563eb" />
-  <link rel="stylesheet" href="/styles.css" />
+  <meta name="theme-color" content="#111111" />
+  <link rel="stylesheet" href="/styles.css?v=dark-clean-2" />
 </head>
 <body>
   <div class="app-shell">
@@ -55,6 +55,7 @@
             <option value="monthly">Monthly</option>
           </select>
           <button id="add">Add</button>
+          <button class="mobile-add-panel" type="button" aria-hidden="true">Add task</button>
           <datalist id="project-options"></datalist>
         </section>
         <section id="content"></section>
@@ -62,7 +63,7 @@
     </section>
   </div>
 
-  <button class="fab-add" type="button" aria-label="Add task" onclick="document.querySelector('#new-title').focus()">+</button>
+  <button class="fab-add" type="button" aria-label="Add task" onclick="document.querySelector('.quick-add').classList.toggle('is-open');document.querySelector('#new-title').focus()">+</button>
 
   <script src="/app.js" type="module"></script>
   <script>
