@@ -256,6 +256,9 @@ test('chat API requires household auth when enabled', async () => {
     let res = await fetch(`${base}/api/chat/threads`);
     assert.equal(res.status, 401);
 
+    res = await fetch(`${base}/api/chat/recent`);
+    assert.equal(res.status, 401);
+
     res = await fetch(`${base}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

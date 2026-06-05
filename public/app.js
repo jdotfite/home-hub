@@ -692,7 +692,7 @@ async function renderChat() {
 
   const isMobile = () => window.innerWidth <= 700;
   if (isMobile() && threads.length) {
-    openChatThread(threads[0].id, threads[0].title);
+    await openChatThread(threads[0].id, threads[0].title);
   }
 
   content.querySelectorAll('.chat-thread-item').forEach(item => {

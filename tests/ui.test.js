@@ -213,6 +213,7 @@ test('profile switcher renders module-aware navigation and cache-bumped PWA asse
   assert.match(js, /\/api\/modules/);
   assert.match(js, /function renderModuleNav/);
   assert.match(js, /async function renderTips/);
+  assert.match(js, /if \(isMobile\(\) && threads\.length\) \{\s*await openChatThread\(threads\[0\]\.id, threads\[0\]\.title\);\s*\}/);
   assert.match(js, /data-nav="\$\{escapeAttribute\(module\.href\)\}"/);
   assert.match(css, /\.profile-switcher/);
   assert.match(css, /\.profile-pill/);
