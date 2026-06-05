@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { createApp } from '../src/server.js';
+import appDefault, { createApp } from '../src/server.js';
 import { resetForTests } from '../src/db.js';
 
 test('vercel config routes api and spa pages', () => {
@@ -12,6 +12,7 @@ test('vercel config routes api and spa pages', () => {
     { source: '/(login|inbox|today|future|grocery|projects|done)', destination: '/api/index.js' },
   ]);
   assert.ok(existsSync('api/index.js'));
+  assert.equal(typeof appDefault, 'function');
 });
 
 test('pwa assets are declared from the app shell', () => {
