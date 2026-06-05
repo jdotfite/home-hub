@@ -20,21 +20,30 @@ function normalizeTipEntry(row) {
   };
 }
 
+function validDateString(value) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day;
+}
+
 function validateEntry(input) {
-  if (!input.date || !/^\d{4}-\d{2}-\d{2}$/.test(input.date)) {
+  if (!validDateString(input.date)) {
     return 'date must be a valid YYYY-MM-DD string';
   }
   const cashTips = Number(input.cashTips);
-  if (input.cashTips !== undefined && (isNaN(cashTips) || cashTips < 0)) {
+  if (input.cashTips !== undefined && (!Number.isFinite(cashTips) || cashTips < 0)) {
     return 'cashTips must be a non-negative number';
   }
   const cardTips = Number(input.cardTips);
-  if (input.cardTips !== undefined && (isNaN(cardTips) || cardTips < 0)) {
+  if (input.cardTips !== undefined && (!Number.isFinite(cardTips) || cardTips < 0)) {
     return 'cardTips must be a non-negative number';
   }
   if (input.hours != null) {
     const hours = Number(input.hours);
-    if (isNaN(hours) || hours <= 0) return 'hours must be a positive number';
+    if (!Number.isFinite(hours) || hours <= 0) return 'hours must be a positive number';
   }
   return null;
 }

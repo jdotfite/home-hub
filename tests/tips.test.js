@@ -99,27 +99,43 @@ test('tip summary computes totals correctly', async () => {
   assert.ok(summary.avgPerShift > 0);
 });
 
-test('createTipEntry rejects missing date', async () => {
+test('createTipEntry rejects missing or impossible dates', async () => {
   await resetForTests();
   await assert.rejects(
     () => createTipEntry({ cashTips: 10, cardTips: 5 }),
     { message: /date/ }
   );
+  await assert.rejects(
+    () => createTipEntry({ date: '2025-99-99', cashTips: 10, cardTips: 5 }),
+    { message: /date/ }
+  );
+  await assert.rejects(
+    () => createTipEntry({ date: '2025-02-29', cashTips: 10, cardTips: 5 }),
+    { message: /date/ }
+  );
 });
 
-test('createTipEntry rejects negative tip amounts', async () => {
+test('createTipEntry rejects negative or non-finite tip amounts', async () => {
   await resetForTests();
   await assert.rejects(
     () => createTipEntry({ date: '2025-03-15', cashTips: -5, cardTips: 0 }),
     { message: /cashTips/ }
   );
   await assert.rejects(
+    () => createTipEntry({ date: '2025-03-15', cashTips: Infinity, cardTips: 0 }),
+    { message: /cashTips/ }
+  );
+  await assert.rejects(
     () => createTipEntry({ date: '2025-03-15', cashTips: 0, cardTips: -1 }),
+    { message: /cardTips/ }
+  );
+  await assert.rejects(
+    () => createTipEntry({ date: '2025-03-15', cashTips: 0, cardTips: 1e309 }),
     { message: /cardTips/ }
   );
 });
 
-test('createTipEntry rejects non-positive hours', async () => {
+test('createTipEntry rejects non-positive or non-finite hours', async () => {
   await resetForTests();
   await assert.rejects(
     () => createTipEntry({ date: '2025-03-15', cashTips: 0, cardTips: 0, hours: 0 }),
@@ -127,6 +143,10 @@ test('createTipEntry rejects non-positive hours', async () => {
   );
   await assert.rejects(
     () => createTipEntry({ date: '2025-03-15', cashTips: 0, cardTips: 0, hours: -2 }),
+    { message: /hours/ }
+  );
+  await assert.rejects(
+    () => createTipEntry({ date: '2025-03-15', cashTips: 0, cardTips: 0, hours: Infinity }),
     { message: /hours/ }
   );
 });
