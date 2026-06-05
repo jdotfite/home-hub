@@ -8,6 +8,7 @@ import { einkDashboard } from './einkDashboard.js';
 import { authStatus, login, loginPage, logout, requireEinkAuth, requireHouseholdAuth, requirePageAuth } from './auth.js';
 import { registerCalendarRoutes } from './modules/calendar/api.js';
 import { registerDocumentRoutes } from './modules/documents/api.js';
+import { registerTipsRoutes } from './modules/tips/api.js';
 import { registerGroceryRoutes } from './modules/grocery/api.js';
 import { registerTaskRoutes } from './modules/tasks/api.js';
 import { appPageRoutes } from './modules/registry.js';
@@ -42,6 +43,7 @@ export function createApp() {
   registerCalendarRoutes(app);
   registerDocumentRoutes(app);
   registerGroceryRoutes(app);
+  registerTipsRoutes(app);
 
   app.get('/api/eink/today', async (_req, res, next) => {
     try { res.json(await einkToday()); } catch (err) { next(err); }

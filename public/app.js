@@ -40,7 +40,7 @@ async function render() {
   if (view.home) return renderHome();
   if (view.calendar) return renderCalendar();
   if (view.documents) return renderDocuments();
-  if (view.tips) return renderTipsPlaceholder();
+  if (view.tips) return renderTips();
   if (view.projects) return renderProjects();
   if (view.grocery) return renderGrocery();
 
@@ -455,14 +455,142 @@ function friendlyDate(date) {
   return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
-async function renderTipsPlaceholder() {
+async function renderTips() {
   setActiveNav();
   setBodyView('tips');
-  content.innerHTML = viewHeader('Tips', 'Fast shift-tip tracking is next; profile visibility is wired now.') + `<section class="hub-card tips-placeholder">
-    <div class="card-heading"><span>💵</span><div><strong>Tips tracker module</strong><small>Wife profile only for now</small></div></div>
-    <p>This module is ready for the next build slice: add shift, weekly/monthly summaries, and CSV export.</p>
-    <a class="ghost-link" href="/home">Back to hub</a>
-  </section>`;
+  const today = new Date().toISOString().slice(0, 10);
+  const [summary, { entries }] = await Promise.all([api('/api/tips/summary'), api('/api/tips')]);
+  const fmt = n => '$' + Number(n).toFixed(2).replace(/\.00$/, '');
+  content.innerHTML = viewHeader('Tips', `${entries.length} shift${entries.length === 1 ? '' : 's'} logged.`) + `
+    <section class="tips-summary-grid">
+      <div class="tip-stat"><span class="tip-stat-amount">${escapeHtml(fmt(summary.thisWeek))}</span><small>This week</small></div>
+      <div class="tip-stat"><span class="tip-stat-amount">${escapeHtml(fmt(summary.thisMonth))}</span><small>This month</small></div>
+      <div class="tip-stat"><span class="tip-stat-amount">${escapeHtml(fmt(summary.avgPerShift))}</span><small>Avg / shift</small></div>
+    </section>
+    <section class="hub-panel tips-log-panel">
+      <header><h3>Log Shift</h3></header>
+      <form id="tips-form" class="tips-form">
+        <div class="tips-form-row">
+          <label>Date<input type="date" name="date" value="${escapeAttribute(today)}" required></label>
+          <label>Shift<select name="shiftType"><option value="day">Day</option><option value="night">Night</option><option value="double">Double</option><option value="weekend">Weekend</option><option value="other">Other</option></select></label>
+          <label>Location<input type="text" name="location" placeholder="e.g. Main St"></label>
+        </div>
+        <div class="tips-form-row">
+          <label>Cash&nbsp;$<input type="number" name="cashTips" placeholder="0" step="0.01" min="0" value="0"></label>
+          <label>Card&nbsp;$<input type="number" name="cardTips" placeholder="0" step="0.01" min="0" value="0"></label>
+          <label>Hours<input type="number" name="hours" placeholder="—" step="0.5" min="0.5"></label>
+        </div>
+        <div class="tips-form-row tips-notes-row">
+          <label class="tips-notes-label">Notes<input type="text" name="notes" placeholder="Optional…"></label>
+          <button type="submit" class="tips-submit-btn">Log shift</button>
+        </div>
+      </form>
+    </section>
+    <div id="tips-shifts-list" class="tips-shifts">
+      ${entries.length ? entries.map(tipShiftHtml).join('') : '<div class="empty-state">No shifts logged yet. Use the form above to add your first shift.</div>'}
+    </div>`;
+
+  $('#tips-form').onsubmit = async e => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const data = {
+      date: fd.get('date'),
+      shiftType: fd.get('shiftType'),
+      location: fd.get('location') || '',
+      cashTips: parseFloat(fd.get('cashTips')) || 0,
+      cardTips: parseFloat(fd.get('cardTips')) || 0,
+      notes: fd.get('notes') || '',
+    };
+    const hoursVal = fd.get('hours');
+    if (hoursVal) data.hours = parseFloat(hoursVal);
+    await api('/api/tips', { method: 'POST', body: JSON.stringify(data) });
+    renderTips();
+  };
+
+  bindTipsShiftControls(entries);
+}
+
+function bindTipsShiftControls(entries) {
+  content.querySelectorAll('.tips-delete-btn').forEach(btn => {
+    btn.onclick = async e => {
+      const card = e.currentTarget.closest('.tips-shift');
+      const id = card.dataset.id;
+      if (!confirm('Delete this shift?')) return;
+      await api(`/api/tips/${id}`, { method: 'DELETE' });
+      renderTips();
+    };
+  });
+  content.querySelectorAll('.tips-edit-btn').forEach(btn => {
+    btn.onclick = e => {
+      const card = e.currentTarget.closest('.tips-shift');
+      const id = card.dataset.id;
+      const entry = entries.find(en => en.id === id);
+      if (!entry) return;
+      card.innerHTML = tipEditFormHtml(entry);
+      card.querySelector('.tips-edit-form').onsubmit = async ev => {
+        ev.preventDefault();
+        const fd = new FormData(ev.currentTarget);
+        const data = {
+          date: fd.get('date'),
+          shiftType: fd.get('shiftType'),
+          location: fd.get('location') || '',
+          cashTips: parseFloat(fd.get('cashTips')) || 0,
+          cardTips: parseFloat(fd.get('cardTips')) || 0,
+          notes: fd.get('notes') || '',
+        };
+        const hoursVal = fd.get('hours');
+        if (hoursVal) data.hours = parseFloat(hoursVal);
+        await api(`/api/tips/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+        renderTips();
+      };
+      card.querySelector('.tips-edit-cancel').onclick = () => renderTips();
+    };
+  });
+}
+
+function tipShiftHtml(entry) {
+  const total = (Number(entry.cashTips) || 0) + (Number(entry.cardTips) || 0);
+  const fmt = n => '$' + Number(n).toFixed(2).replace(/\.00$/, '');
+  const meta = [entry.shiftType, entry.location, entry.hours ? entry.hours + 'h' : ''].filter(Boolean).join(' · ');
+  return `<article class="tips-shift" data-id="${escapeAttribute(entry.id)}">
+    <div class="tips-shift-header">
+      <div><span class="tips-shift-date">${escapeHtml(formatDateLabel(entry.date))}</span><span class="tips-shift-meta">${escapeHtml(meta)}</span></div>
+      <span class="tips-shift-total">${escapeHtml(fmt(total))}</span>
+    </div>
+    <div class="tips-shift-breakdown">
+      <span>Cash ${escapeHtml(fmt(entry.cashTips))}</span>
+      <span>Card ${escapeHtml(fmt(entry.cardTips))}</span>
+      ${entry.notes ? `<span class="tips-shift-notes">${escapeHtml(entry.notes)}</span>` : ''}
+    </div>
+    <div class="tips-shift-actions">
+      <button type="button" class="tips-edit-btn">Edit</button>
+      <button type="button" class="tips-delete-btn">Delete</button>
+    </div>
+  </article>`;
+}
+
+function tipEditFormHtml(entry) {
+  const shiftTypes = ['day', 'night', 'double', 'weekend', 'other'];
+  const opts = shiftTypes.map(st => `<option value="${st}"${entry.shiftType === st ? ' selected' : ''}>${st[0].toUpperCase() + st.slice(1)}</option>`).join('');
+  return `<form class="tips-form tips-edit-form" data-id="${escapeAttribute(entry.id)}">
+    <div class="tips-form-row">
+      <label>Date<input type="date" name="date" value="${escapeAttribute(entry.date)}" required></label>
+      <label>Shift<select name="shiftType">${opts}</select></label>
+      <label>Location<input type="text" name="location" value="${escapeAttribute(entry.location)}"></label>
+    </div>
+    <div class="tips-form-row">
+      <label>Cash&nbsp;$<input type="number" name="cashTips" value="${escapeAttribute(entry.cashTips)}" step="0.01" min="0"></label>
+      <label>Card&nbsp;$<input type="number" name="cardTips" value="${escapeAttribute(entry.cardTips)}" step="0.01" min="0"></label>
+      <label>Hours<input type="number" name="hours" value="${escapeAttribute(entry.hours != null ? entry.hours : '')}" step="0.5" min="0.5" placeholder="—"></label>
+    </div>
+    <div class="tips-form-row tips-notes-row">
+      <label class="tips-notes-label">Notes<input type="text" name="notes" value="${escapeAttribute(entry.notes)}"></label>
+      <div class="tips-edit-btns">
+        <button type="submit">Save</button>
+        <button type="button" class="tips-edit-cancel">Cancel</button>
+      </div>
+    </div>
+  </form>`;
 }
 
 async function renderProjects() {

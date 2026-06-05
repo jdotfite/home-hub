@@ -2051,3 +2051,29 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
     margin-top: 0;
   }
 }
+
+/* Tips tracker module */
+.tips-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+.tip-stat { display: flex; flex-direction: column; align-items: center; padding: 16px 10px; border: 1px solid var(--border); border-radius: 14px; background: #202020; gap: 4px; text-align: center; }
+.tip-stat-amount { font-size: 22px; font-weight: 800; letter-spacing: -.03em; color: #ffd60a; }
+.tip-stat small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; }
+.tips-log-panel { margin-bottom: 18px; }
+.tips-form { display: grid; gap: 10px; }
+.tips-form-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.tips-form-row label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 750; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; flex: 1; min-width: 80px; }
+.tips-form-row input, .tips-form-row select { padding: 8px 10px; font-size: 14px; }
+.tips-notes-label { flex: 2 !important; }
+.tips-submit-btn { background: #ffd60a; color: #111; border: 0; border-radius: 12px; padding: 10px 18px; font-weight: 800; cursor: pointer; white-space: nowrap; align-self: flex-end; }
+.tips-edit-btns { display: flex; gap: 8px; align-self: flex-end; }
+.tips-edit-btns button { padding: 10px 14px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+.tips-edit-btns button[type="submit"] { background: #ffd60a; color: #111; border: 0; }
+.tips-shifts { display: grid; gap: 10px; }
+.tips-shift { padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: #202020; display: grid; gap: 6px; }
+.tips-shift-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.tips-shift-date { display: block; font-weight: 700; font-size: 15px; }
+.tips-shift-meta { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; text-transform: capitalize; }
+.tips-shift-total { font-size: 20px; font-weight: 800; color: #ffd60a; white-space: nowrap; }
+.tips-shift-breakdown { display: flex; gap: 14px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+.tips-shift-notes { color: var(--faint); font-style: italic; }
+.tips-shift-actions { display: flex; gap: 8px; }
+.tips-shift-actions button { font-size: 12px; padding: 5px 10px; border-radius: 8px; cursor: pointer; }
