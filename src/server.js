@@ -1,10 +1,12 @@
 import express from 'express';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createTask, updateTask, completeTask, listTasks, reorderTasks, listProjects, einkToday } from './tasks.js';
-import { createGroceryItem, listGroceryItems, updateGroceryItem, clearCheckedGroceryItems, quickAdd } from './grocery.js';
+import { addSubtask, createTask, updateSubtask, deleteSubtask, updateTask, completeTask, listTasks, reorderTasks, listProjects, einkToday } from './tasks.js';
+import { createGroceryItem, listGroceryItems, listRecentGroceryItems, readdGroceryItem, updateGroceryItem, clearCheckedGroceryItems, deleteGroceryItem, quickAdd } from './grocery.js';
 import { runTodoCommand } from './discordParser.js';
 import { alexaRoute } from './alexa.js';
+import { einkDashboard } from './einkDashboard.js';
+import { authStatus, login, loginPage, logout, requireEinkAuth, requireHouseholdAuth, requirePageAuth } from './auth.js';
 
 export function createApp() {
   const app = express();
@@ -12,9 +14,21 @@ export function createApp() {
   app.use(express.static('public'));
 
   const page = name => (_req, res) => res.sendFile(`${process.cwd()}/public/index.html`);
-  app.get(['/inbox', '/today', '/future', '/grocery', '/projects', '/eink', '/done'], page());
+  app.get('/login', loginPage);
+  app.get(['/inbox', '/today', '/future', '/grocery', '/projects', '/done'], requirePageAuth, page());
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  app.get('/api/auth/status', authStatus);
+  app.post('/api/auth/login', login);
+  app.post('/api/auth/logout', logout);
+
+  app.use('/api/eink', requireEinkAuth);
+  app.use('/api', (req, res, next) => {
+    if (req.path === '/alexa') return next();
+    if (req.path.startsWith('/auth/')) return next();
+    if (req.path.startsWith('/eink/')) return next();
+    return requireHouseholdAuth(req, res, next);
+  });
 
   app.get('/api/tasks', async (req, res, next) => {
     try { res.json({ tasks: await listTasks(req.query) }); } catch (err) { next(err); }
@@ -26,6 +40,18 @@ export function createApp() {
 
   app.patch('/api/tasks/:id', async (req, res, next) => {
     try { res.json({ task: await updateTask(req.params.id, req.body) }); } catch (err) { next(err); }
+  });
+
+  app.post('/api/tasks/:id/subtasks', async (req, res, next) => {
+    try { res.status(201).json(await addSubtask(req.params.id, req.body)); } catch (err) { next(err); }
+  });
+
+  app.patch('/api/tasks/:id/subtasks/:subtaskId', async (req, res, next) => {
+    try { res.json({ subtask: await updateSubtask(req.params.id, req.params.subtaskId, req.body) }); } catch (err) { next(err); }
+  });
+
+  app.delete('/api/tasks/:id/subtasks/:subtaskId', async (req, res, next) => {
+    try { res.json(await deleteSubtask(req.params.id, req.params.subtaskId)); } catch (err) { next(err); }
   });
 
   app.post('/api/tasks/:id/complete', async (req, res, next) => {
@@ -44,12 +70,24 @@ export function createApp() {
     try { res.json({ items: await listGroceryItems(req.query) }); } catch (err) { next(err); }
   });
 
+  app.get('/api/grocery/recent', async (req, res, next) => {
+    try { res.json({ items: await listRecentGroceryItems(req.query.limit) }); } catch (err) { next(err); }
+  });
+
   app.post('/api/grocery', async (req, res, next) => {
     try { res.status(201).json({ item: await createGroceryItem(req.body) }); } catch (err) { next(err); }
   });
 
   app.patch('/api/grocery/:id', async (req, res, next) => {
     try { res.json({ item: await updateGroceryItem(req.params.id, req.body) }); } catch (err) { next(err); }
+  });
+
+  app.delete('/api/grocery/:id', async (req, res, next) => {
+    try { res.json(await deleteGroceryItem(req.params.id)); } catch (err) { next(err); }
+  });
+
+  app.post('/api/grocery/:id/readd', async (req, res, next) => {
+    try { res.status(201).json({ item: await readdGroceryItem(req.params.id) }); } catch (err) { next(err); }
   });
 
   app.post('/api/grocery/clear-checked', async (_req, res, next) => {
@@ -62,6 +100,10 @@ export function createApp() {
 
   app.get('/api/eink/today', async (_req, res, next) => {
     try { res.json(await einkToday()); } catch (err) { next(err); }
+  });
+
+  app.get('/api/eink/dashboard', async (_req, res, next) => {
+    try { res.json(await einkDashboard()); } catch (err) { next(err); }
   });
 
   app.get('/api/eink/today.svg', async (_req, res, next) => {

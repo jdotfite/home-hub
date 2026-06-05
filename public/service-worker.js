@@ -1,4 +1,4 @@
-const CACHE_NAME = 'todo-app-v2-dark-clean';
+const CACHE_NAME = 'todo-app-v18-remove-eink-page';
 const APP_SHELL = [
   '/',
   '/today',

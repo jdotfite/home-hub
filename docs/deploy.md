@@ -32,7 +32,31 @@ TODO_KV_KEY=todo:store
 
 If `KV_REST_API_URL` and `KV_REST_API_TOKEN` are missing, the app falls back to local JSON file storage. That is fine for desktop development but not durable on Vercel serverless.
 
-## 3. Add Alexa token
+## 3. Add household auth
+
+Before sharing the Vercel URL, set these environment variables:
+
+```text
+HOUSEHOLD_PASSWORD=<shared-family-password>
+AUTH_SECRET=<long-random-string>
+```
+
+When `HOUSEHOLD_PASSWORD` is set, app pages redirect to `/login` and `/api/*` routes require a valid login session. `AUTH_SECRET` signs the HttpOnly session cookie; make it a different long random value from the household password.
+
+Optional integration tokens:
+
+```text
+HOUSEHOLD_API_TOKEN=<long-random-string>
+EINK_API_TOKEN=<long-random-string>
+```
+
+- API clients can pass `x-todo-token: <HOUSEHOLD_API_TOKEN>` or `?token=...`.
+- The e-paper dashboard can pass `x-eink-token: <EINK_API_TOKEN>` or `?token=...` to `/api/eink/*` endpoints.
+- If `EINK_API_TOKEN` is omitted, `/api/eink/*` falls back to `HOUSEHOLD_API_TOKEN`.
+
+See `.env.example` for the full deployment environment checklist.
+
+## 4. Add Alexa token
 
 Set a shared Alexa token:
 
@@ -49,12 +73,12 @@ x-alexa-token: <long-random-string>
 or in the endpoint URL:
 
 ```text
-https://<your-vercel-app>.vercel.app/api/alexa?token=<long-random-string>
+https://<your-vercel-app>.vercel.app/api/alexa?token=***
 ```
 
 The query-string form is easier for the first manual Alexa Developer Console setup. Use account linking or a request-signature verifier later if this becomes more than a private household skill.
 
-## 4. Verify deployment
+## 5. Verify deployment
 
 After deploy, check:
 
@@ -62,6 +86,7 @@ After deploy, check:
 https://<your-vercel-app>.vercel.app/api/health
 https://<your-vercel-app>.vercel.app/today
 https://<your-vercel-app>.vercel.app/grocery
+https://<your-vercel-app>.vercel.app/api/eink/dashboard?token=***
 ```
 
 Expected health response:
@@ -70,7 +95,9 @@ Expected health response:
 { "ok": true }
 ```
 
-## 5. Alexa skill setup
+If household auth is enabled, `/today` and `/grocery` should redirect to `/login` until you enter the household password.
+
+## 6. Alexa skill setup
 
 1. Open <https://developer.amazon.com/alexa/console/ask>.
 2. Create a custom skill.
@@ -79,7 +106,7 @@ Expected health response:
 5. Set the default endpoint to:
 
 ```text
-https://<your-vercel-app>.vercel.app/api/alexa?token=<ALEXA_API_TOKEN>
+https://<your-vercel-app>.vercel.app/api/alexa?token=***
 ```
 
 6. Test utterances:
@@ -92,7 +119,7 @@ what is on my grocery list
 what is on my todo list
 ```
 
-## 6. Current Alexa intents
+## 7. Current Alexa intents
 
 - `AddGroceryItemIntent` — adds item plus optional quantity to Walmart/grocery list.
 - `AddTodoIntent` — adds a todo, or uses quick-add parsing if the phrase starts with `grocery` or `walmart`.

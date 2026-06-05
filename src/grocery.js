@@ -25,8 +25,11 @@ function ensureGrocery(store) {
 }
 
 function parseQuantity(title) {
-  const match = String(title).trim().match(/^(\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten)\s+(.+)$/i);
-  if (!match) return { quantity: '', title: String(title).trim() };
+  const raw = String(title).trim();
+  const suffix = raw.match(/^(.+?)\s+(?:x\s*)?(\d+(?:\.\d+)?)$/i);
+  if (suffix) return { quantity: suffix[2], title: suffix[1].trim() };
+  const match = raw.match(/^(\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten)\s+(.+)$/i);
+  if (!match) return { quantity: '', title: raw };
   const words = { one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9', ten: '10' };
   return { quantity: words[match[1].toLowerCase()] || match[1], title: match[2].trim() };
 }
@@ -73,6 +76,34 @@ export async function listGroceryItems(filters = {}) {
   return items.sort((a, b) => Number(a.checked) - Number(b.checked) || a.category.localeCompare(b.category) || a.createdAt.localeCompare(b.createdAt));
 }
 
+export async function listRecentGroceryItems(limit = 8) {
+  const seen = new Set();
+  return ensureGrocery(await readStore())
+    .map(normalizeItem)
+    .filter(item => item.checked)
+    .sort((a, b) => String(b.checkedAt || b.updatedAt || '').localeCompare(String(a.checkedAt || a.updatedAt || '')))
+    .filter(item => {
+      const key = `${item.store}|${item.category}|${item.quantity}|${item.title.toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, Number(limit) || 8);
+}
+
+export async function readdGroceryItem(id) {
+  const original = ensureGrocery(await readStore()).map(normalizeItem).find(item => item.id === id);
+  if (!original) throw Object.assign(new Error('Grocery item not found'), { status: 404 });
+  return createGroceryItem({
+    title: original.title,
+    quantity: original.quantity,
+    store: original.store,
+    category: original.category,
+    addedBy: original.addedBy,
+    source: 'readd',
+  });
+}
+
 export async function updateGroceryItem(id, patch) {
   const store = await readStore();
   const items = ensureGrocery(store);
@@ -95,6 +126,15 @@ export async function clearCheckedGroceryItems() {
   const store = await readStore();
   const before = ensureGrocery(store).length;
   store.groceryItems = store.groceryItems.filter(i => !i.checked);
+  await writeStore(store);
+  return { removed: before - store.groceryItems.length };
+}
+
+export async function deleteGroceryItem(id) {
+  const store = await readStore();
+  const before = ensureGrocery(store).length;
+  store.groceryItems = store.groceryItems.filter(i => i.id !== id);
+  if (store.groceryItems.length === before) throw Object.assign(new Error('Grocery item not found'), { status: 404 });
   await writeStore(store);
   return { removed: before - store.groceryItems.length };
 }

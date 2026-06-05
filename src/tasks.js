@@ -24,7 +24,23 @@ function normalizeTask(row) {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     completedAt: row.completedAt || null,
+    subtasks: normalizeSubtasks(row.subtasks),
   };
+}
+
+function normalizeSubtasks(subtasks = []) {
+  return Array.isArray(subtasks) ? subtasks.map(item => ({
+    id: item.id,
+    title: item.title,
+    checked: Boolean(item.checked),
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  })).filter(item => item.id && item.title) : [];
+}
+
+function ensureSubtasks(task) {
+  if (!Array.isArray(task.subtasks)) task.subtasks = [];
+  return task.subtasks;
 }
 
 function sortTasks(a, b) {
@@ -55,6 +71,7 @@ export async function createTask(input) {
     createdAt: timestamp,
     updatedAt: timestamp,
     completedAt: null,
+    subtasks: [],
   };
   store.tasks.push(task);
   await writeStore(store);
@@ -63,6 +80,51 @@ export async function createTask(input) {
 
 export async function getTask(id) {
   return normalizeTask((await readStore()).tasks.find(t => t.id === id));
+}
+
+export async function addSubtask(taskId, input) {
+  const title = String(input.title || '').trim();
+  if (!title) throw Object.assign(new Error('Subtask title is required'), { status: 400 });
+  const store = await readStore();
+  const task = store.tasks.find(t => t.id === taskId);
+  if (!task) throw Object.assign(new Error('Task not found'), { status: 404 });
+  const timestamp = nowIso();
+  const subtask = { id: nanoid(12), title, checked: Boolean(input.checked), createdAt: timestamp, updatedAt: timestamp };
+  ensureSubtasks(task).push(subtask);
+  task.updatedAt = timestamp;
+  await writeStore(store);
+  const normalized = normalizeSubtasks([subtask])[0];
+  return { ...normalized, subtask: normalized, task: normalizeTask(task) };
+}
+
+export async function updateSubtask(taskId, subtaskId, patch) {
+  const store = await readStore();
+  const task = store.tasks.find(t => t.id === taskId);
+  if (!task) throw Object.assign(new Error('Task not found'), { status: 404 });
+  const subtask = ensureSubtasks(task).find(item => item.id === subtaskId);
+  if (!subtask) throw Object.assign(new Error('Subtask not found'), { status: 404 });
+  if (Object.prototype.hasOwnProperty.call(patch, 'title')) {
+    const title = String(patch.title || '').trim();
+    if (!title) throw Object.assign(new Error('Subtask title is required'), { status: 400 });
+    subtask.title = title;
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'checked')) subtask.checked = Boolean(patch.checked);
+  subtask.updatedAt = nowIso();
+  task.updatedAt = subtask.updatedAt;
+  await writeStore(store);
+  return normalizeSubtasks([subtask])[0];
+}
+
+export async function deleteSubtask(taskId, subtaskId) {
+  const store = await readStore();
+  const task = store.tasks.find(t => t.id === taskId);
+  if (!task) throw Object.assign(new Error('Task not found'), { status: 404 });
+  const before = ensureSubtasks(task).length;
+  task.subtasks = task.subtasks.filter(item => item.id !== subtaskId);
+  if (task.subtasks.length === before) throw Object.assign(new Error('Subtask not found'), { status: 404 });
+  task.updatedAt = nowIso();
+  await writeStore(store);
+  return { removed: before - task.subtasks.length };
 }
 
 export async function listTasks(filters = {}) {

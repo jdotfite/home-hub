@@ -19,7 +19,33 @@ test('frontend renders inspiration-driven summary cards and grouped work section
   assert.match(js, /function workSectionsHtml/);
   assert.match(js, /class="summary-grid"/);
   assert.match(js, /class="work-section/);
+  assert.match(js, /mobile-filters/);
+  assert.match(js, /completed/);
   assert.match(js, /data-group-by="project"/);
+});
+
+test('task cards expose inline sub todo lists', () => {
+  const js = readFileSync('public/app.js', 'utf8');
+  const css = readFileSync('public/styles.css', 'utf8');
+
+  assert.match(js, /function subtasksHtml/);
+  assert.match(js, /subtask-add/);
+  assert.match(js, /\/api\/tasks\/\$\{task\.dataset\.id\}\/subtasks/);
+  assert.match(js, /class="subtask-check"/);
+  assert.match(js, /contenteditable="true" data-field="subtask-title"/);
+  assert.match(js, /title: title/);
+  assert.match(css, /\.subtask-list/);
+  assert.match(css, /\.subtask-add/);
+});
+
+test('task composer clarifies projects and uses readable dark form controls', () => {
+  const html = readFileSync('public/index.html', 'utf8');
+  const css = readFileSync('public/styles.css', 'utf8');
+
+  assert.match(html, /placeholder="project \(optional\)"/);
+  assert.doesNotMatch(html, /id="new-project"[^>]*value="inbox"/);
+  assert.match(css, /::-webkit-calendar-picker-indicator/);
+  assert.match(css, /filter: invert\(1\)/);
 });
 
 test('stylesheet includes responsive mobile card UI and desktop task table affordances', () => {
@@ -38,9 +64,78 @@ test('mobile stylesheet follows the clean dark reference hierarchy', () => {
 
   assert.match(css, /Dark clean mobile direction/);
   assert.match(css, /--lemon: #ffd60a/);
-  assert.match(css, /@media \(max-width: 720px\)[\s\S]*body \{ background: #111;/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*body \{ background: #151515;/);
   assert.match(css, /@media \(max-width: 720px\)[\s\S]*\.composer:not\(\.is-open\) input:not\(#new-title\)/);
   assert.match(css, /@media \(max-width: 720px\)[\s\S]*\.fab-add::before/);
+  assert.match(css, /Exact-match mobile polish/);
+  assert.match(css, /User screenshot correction pass/);
+  assert.match(css, /\.mobile-appbar/);
+  assert.match(css, /\.fab-add::after/);
+  assert.match(css, /radial-gradient\(circle, #858585 2px/);
   assert.match(css, /\.task-menu/);
   assert.match(css, /\.mobile-add-panel/);
+});
+
+test('grocery page exposes recent re-add chips for family shopping', () => {
+  const js = readFileSync('public/app.js', 'utf8');
+  const css = readFileSync('public/styles.css', 'utf8');
+
+  assert.match(js, /\/api\/grocery\/recent/);
+  assert.match(js, /class="recent-grocery /);
+  assert.match(js, /class="recent-grocery-chip"/);
+  assert.match(js, /class="recent-grocery-delete"/);
+  assert.match(js, /Hold item to delete/);
+  assert.match(js, /quick-readd-delete-mode/);
+  assert.match(js, /Remove from quick re-add/);
+  assert.match(js, /\/api\/grocery\/\$\{.*\}\/readd/);
+  assert.match(js, /method: 'DELETE'/);
+  assert.match(css, /\.recent-grocery/);
+  assert.match(css, /\.recent-grocery-chip/);
+  assert.match(css, /\.recent-grocery-delete/);
+  assert.match(css, /wobble-delete/);
+});
+
+
+test('grocery mobile route behaves like a focused shopping PWA', () => {
+  const html = readFileSync('public/index.html', 'utf8');
+  const js = readFileSync('public/app.js', 'utf8');
+  const css = readFileSync('public/styles.css', 'utf8');
+
+  assert.doesNotMatch(html, /onclick="document\.querySelector\('\.quick-add'\)/);
+  assert.match(js, /function setBodyView/);
+  assert.match(js, /document\.body\.dataset\.view/);
+  assert.match(js, /viewKey === 'grocery' \? 'Add grocery item' : 'Add task'/);
+  assert.match(js, /function openPrimaryAdd/);
+  assert.match(js, /#grocery-title/);
+  assert.match(css, /Grocery PWA focus/);
+  assert.match(css, /body\[data-view="grocery"\] \.quick-add/);
+  assert.match(css, /body\[data-view="grocery"\] \.fab-add::after[\s\S]*Add grocery item/);
+});
+
+
+test('walmart grocery links prefer in-store fulfillment search results', () => {
+  const js = readFileSync('public/app.js', 'utf8');
+
+  assert.match(js, /new URLSearchParams/);
+  assert.match(js, /fulfillment_method_in_store:In-store/);
+  assert.match(js, /https:\/\/www\.walmart\.com\/search\?\$\{query\.toString\(\)\}/);
+});
+
+
+test('brand and navigation polish uses favicon, flat yellow, and cleaner sidebar icons', () => {
+  const html = readFileSync('public/index.html', 'utf8');
+  const css = readFileSync('public/styles.css', 'utf8');
+
+  assert.match(html, /rel="icon" href="\/icon\.svg"/);
+  assert.match(html, /rel="apple-touch-icon" href="\/icon\.svg"/);
+  assert.match(html, /styles\.css\?v=ux-polish-18/);
+  assert.match(html, /app\.js\?v=ux-polish-18/);
+  assert.match(html, /<a href="\/inbox" data-nav="\/inbox"><span>↧<\/span> Inbox<\/a>/);
+  assert.match(html, /<a href="\/projects" data-nav="\/projects"><span>▦<\/span> Projects<\/a>/);
+  assert.doesNotMatch(html, /data-nav="\/eink"/);
+  assert.match(css, /Final brand\/accent cleanup/);
+  assert.match(css, /Sidebar icon normalization/);
+  assert.match(css, /\.brand-mark[\s\S]*border-radius: 9px/);
+  assert.match(css, /\.walmart-link,[\s\S]*font-weight: 500/);
+  assert.match(css, /recent-grocery-chip:hover[\s\S]*background: #303030/);
 });

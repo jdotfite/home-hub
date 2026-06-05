@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resetForTests } from '../src/db.js';
-import { createTask, updateTask, completeTask, getTask, listProjects, listTasks, reorderTasks } from '../src/tasks.js';
+import { addSubtask, createTask, updateSubtask, deleteSubtask, updateTask, completeTask, getTask, listProjects, listTasks, reorderTasks } from '../src/tasks.js';
 
 test('task metadata can be updated for scheduling, waiting, e-ink, and recurrence', async () => {
   await resetForTests();
@@ -59,4 +59,24 @@ test('project list includes open task counts only', async () => {
     { project: 'house', count: 1 },
   ]);
   assert.equal((await getTask(house.id)).status, 'done');
+});
+
+test('tasks can hold nested sub todo items', async () => {
+  await resetForTests();
+  const project = await createTask({ title: 'Launch e-paper dashboard', project: 'eink' });
+
+  const mount = await addSubtask(project.id, { title: 'Mount Raspberry Pi behind frame' });
+  await addSubtask(project.id, { title: 'Test family calendar feed' });
+  const checked = await updateSubtask(project.id, mount.id, { checked: true });
+
+  assert.equal(checked.checked, true);
+  let task = await getTask(project.id);
+  assert.deepEqual(task.subtasks.map(item => ({ title: item.title, checked: item.checked })), [
+    { title: 'Mount Raspberry Pi behind frame', checked: true },
+    { title: 'Test family calendar feed', checked: false },
+  ]);
+
+  await deleteSubtask(project.id, mount.id);
+  task = await getTask(project.id);
+  assert.deepEqual(task.subtasks.map(item => item.title), ['Test family calendar feed']);
 });

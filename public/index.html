@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Todo</title>
   <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
   <meta name="theme-color" content="#111111" />
-  <link rel="stylesheet" href="/styles.css?v=dark-clean-2" />
+  <link rel="stylesheet" href="/styles.css?v=ux-polish-18" />
 </head>
 <body>
   <div class="app-shell">
@@ -16,12 +18,11 @@
         <span><strong>Todo</strong><small>Family workspace</small></span>
       </a>
       <nav aria-label="Main views">
-        <a href="/inbox" data-nav="/inbox"><span>□</span> Inbox</a>
+        <a href="/inbox" data-nav="/inbox"><span>↧</span> Inbox</a>
         <a href="/today" data-nav="/today"><span>◷</span> Today</a>
         <a href="/future" data-nav="/future"><span>▣</span> Future</a>
         <a href="/grocery" data-nav="/grocery"><span>🛒</span> Grocery</a>
-        <a href="/projects" data-nav="/projects"><span>⌁</span> Projects</a>
-        <a href="/eink" data-nav="/eink"><span>▤</span> E-ink</a>
+        <a href="/projects" data-nav="/projects"><span>▦</span> Projects</a>
         <a href="/done" data-nav="/done"><span>✓</span> Done</a>
       </nav>
       <div class="sidebar-note">
@@ -46,7 +47,7 @@
       <main>
         <section class="composer quick-add" aria-label="Add a new task">
           <input id="new-title" placeholder="Add a task…" autofocus />
-          <input id="new-project" placeholder="project" value="inbox" list="project-options" />
+          <input id="new-project" placeholder="project (optional)" list="project-options" />
           <input id="new-due" type="date" aria-label="Due date" />
           <select id="new-recurrence" aria-label="Repeat">
             <option value="none">No repeat</option>
@@ -63,9 +64,9 @@
     </section>
   </div>
 
-  <button class="fab-add" type="button" aria-label="Add task" onclick="document.querySelector('.quick-add').classList.toggle('is-open');document.querySelector('#new-title').focus()">+</button>
+  <button class="fab-add" type="button" aria-label="Add item">+</button>
 
-  <script src="/app.js" type="module"></script>
+  <script src="/app.js?v=ux-polish-18" type="module"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js'));
