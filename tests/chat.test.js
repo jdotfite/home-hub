@@ -10,6 +10,7 @@ import {
   listMessages,
   postMessage,
   deleteMessage,
+  getRecentMessages,
 } from '../src/modules/chat/data.js';
 
 async function withServer(fn) {
@@ -269,4 +270,68 @@ test('chat API requires household auth when enabled', async () => {
     if (previousSecret === undefined) delete process.env.AUTH_SECRET; else process.env.AUTH_SECRET = previousSecret;
     server.close();
   }
+});
+
+// --- getRecentMessages ---
+
+test('getRecentMessages returns messages newest-first with threadTitle attached', async () => {
+  await resetForTests();
+  const thread = await createThread({ title: 'General' });
+  await postMessage(thread.id, { profileId: 'justin', body: 'First' });
+  await postMessage(thread.id, { profileId: 'wife', body: 'Second' });
+
+  const recent = await getRecentMessages(5);
+  assert.equal(recent.length, 2);
+  assert.equal(recent[0].body, 'Second');
+  assert.equal(recent[0].threadTitle, 'General');
+  assert.equal(recent[1].body, 'First');
+});
+
+test('getRecentMessages respects limit and caps at 20', async () => {
+  await resetForTests();
+  const thread = await createThread({ title: 'Busy' });
+  for (let i = 0; i < 10; i++) {
+    await postMessage(thread.id, { profileId: 'family', body: `msg ${i}` });
+  }
+  const three = await getRecentMessages(3);
+  assert.equal(three.length, 3);
+  const capped = await getRecentMessages(999);
+  assert.equal(capped.length, 10);
+});
+
+test('getRecentMessages omits messages from deleted threads', async () => {
+  await resetForTests();
+  const t1 = await createThread({ title: 'Keep' });
+  const t2 = await createThread({ title: 'Delete me' });
+  await postMessage(t1.id, { profileId: 'family', body: 'Stays' });
+  await postMessage(t2.id, { profileId: 'family', body: 'Goes away' });
+  await deleteThread(t2.id);
+
+  const recent = await getRecentMessages(10);
+  assert.equal(recent.length, 1);
+  assert.equal(recent[0].body, 'Stays');
+});
+
+test('GET /api/chat/recent returns messages with threadTitle', async () => {
+  await withServer(async base => {
+    let res = await fetch(`${base}/api/chat/threads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Household' }),
+    });
+    const { thread } = await res.json();
+    await fetch(`${base}/api/chat/threads/${thread.id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: 'Hello from home panel' }),
+    });
+
+    res = await fetch(`${base}/api/chat/recent?limit=3`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(Array.isArray(body.messages));
+    assert.equal(body.messages.length, 1);
+    assert.equal(body.messages[0].body, 'Hello from home panel');
+    assert.equal(body.messages[0].threadTitle, 'Household');
+  });
 });

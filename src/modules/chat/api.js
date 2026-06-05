@@ -1,7 +1,14 @@
-import { listThreads, createThread, updateThread, deleteThread, listMessages, postMessage, deleteMessage } from './data.js';
+import { listThreads, createThread, updateThread, deleteThread, listMessages, postMessage, deleteMessage, getRecentMessages } from './data.js';
 import { selectedProfileId } from '../../profiles.js';
 
 export function registerChatRoutes(app) {
+  app.get('/api/chat/recent', async (req, res, next) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit) || 5, 20);
+      res.json({ messages: await getRecentMessages(limit) });
+    } catch (err) { next(err); }
+  });
+
   app.get('/api/chat/threads', async (_req, res, next) => {
     try { res.json({ threads: await listThreads() }); } catch (err) { next(err); }
   });

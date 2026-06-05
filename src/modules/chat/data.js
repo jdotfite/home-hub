@@ -160,3 +160,14 @@ export async function deleteMessage(threadId, messageId) {
   await writeStore(store);
   return { removed: 1 };
 }
+
+export async function getRecentMessages(limit = 5) {
+  const store = await readStore();
+  const threadTitles = new Map((store.chatThreads || []).map(t => [t.id, String(t.title || '').trim()]));
+  return (store.chatMessages || [])
+    .map(m => normalizeMessage(m))
+    .filter(m => m && threadTitles.has(m.threadId))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, Math.max(1, Math.min(limit, 20)))
+    .map(m => ({ ...m, threadTitle: threadTitles.get(m.threadId) }));
+}

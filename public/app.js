@@ -369,12 +369,14 @@ function bindTouchReorder() {
 async function renderHome() {
   setActiveNav();
   setBodyView('home');
-  const [{ tasks: allOpenTasks }, { events }, { items: groceryItems }, { documents }] = await Promise.all([
+  const [{ tasks: allOpenTasks }, { events }, { items: groceryItems }, { documents }, recentChatData] = await Promise.all([
     api('/api/tasks?status=open'),
     api('/api/calendar'),
     api('/api/grocery'),
     api('/api/documents'),
+    api('/api/chat/recent?limit=4').catch(() => ({ messages: [] })),
   ]);
+  const recentChat = recentChatData.messages || [];
   const today = todayString();
   const todayTasks = allOpenTasks.filter(t => !t.dueDate || t.dueDate <= today).slice(0, 5);
   const upcoming = events.slice(0, 5);
@@ -390,6 +392,7 @@ async function renderHome() {
       ${hubPanel('Family Calendar', '/calendar', upcoming.length ? upcoming.map(calendarEventRow).join('') : '<li class="muted-row">No upcoming events.</li>')}
       ${hubPanel('Grocery', '/grocery', `<li><span>🛒</span><strong>${activeGrocery.length} open item${activeGrocery.length === 1 ? '' : 's'}</strong></li>${activeGrocery.slice(0, 4).map(i => `<li><span>•</span>${escapeHtml(i.quantity ? i.quantity + ' ' : '')}${escapeHtml(i.title)}</li>`).join('')}`)}
       ${hubPanel('Documents', '/documents', featuredDocs.map(doc => `<li><span>${escapeHtml(doc.icon)}</span><strong>${escapeHtml(doc.title)}</strong><small>${escapeHtml(doc.category)}</small></li>`).join(''))}
+      ${hubPanel('Chat', '/chat', recentChat.length ? recentChat.map(m => `<li><span class="chat-avatar hub-chat-avatar" style="background:${escapeAttribute(PROFILE_COLORS[m.profileId] || '#ffd60a')}">${escapeHtml((m.profileId || 'f')[0].toUpperCase())}</span><span class="hub-chat-msg"><strong>${escapeHtml(m.threadTitle || 'Chat')}</strong> <span>${escapeHtml(m.body.length > 60 ? m.body.slice(0, 60) + '…' : m.body)}</span></span></li>`).join('') : '<li class="muted-row">No messages yet.</li>')}
     </section>`;
   $('#hub-capture-add').onclick = quickCapture;
   $('#hub-capture').addEventListener('keydown', e => { if (e.key === 'Enter') quickCapture(); });
@@ -682,9 +685,15 @@ async function renderChat() {
     e.preventDefault();
     const title = $('#chat-thread-title').value.trim();
     if (!title) return;
-    await api('/api/chat/threads', { method: 'POST', body: JSON.stringify({ title }) });
-    renderChat();
+    const { thread } = await api('/api/chat/threads', { method: 'POST', body: JSON.stringify({ title }) });
+    await renderChat();
+    openChatThread(thread.id, thread.title);
   };
+
+  const isMobile = () => window.innerWidth <= 700;
+  if (isMobile() && threads.length) {
+    openChatThread(threads[0].id, threads[0].title);
+  }
 
   content.querySelectorAll('.chat-thread-item').forEach(item => {
     item.querySelector('.chat-thread-btn').onclick = () => openChatThread(item.dataset.id, item.dataset.title);
@@ -713,8 +722,12 @@ async function openChatThread(threadId, threadTitle) {
   content.querySelectorAll('.chat-thread-item').forEach(el => el.classList.toggle('active', el.dataset.id === threadId));
 
   const { messages } = await api(`/api/chat/threads/${threadId}/messages`);
+  const layout = pane.closest('.chat-layout');
+  if (layout) layout.dataset.mobileView = 'messages';
+
   pane.innerHTML = `
     <div class="chat-pane-header">
+      <button type="button" class="chat-back-btn" aria-label="Back to threads">‹</button>
       <strong>${escapeHtml(threadTitle)}</strong>
     </div>
     <div class="chat-messages" id="chat-messages">
@@ -727,6 +740,12 @@ async function openChatThread(threadId, threadTitle) {
 
   const msgEl = $('#chat-messages');
   if (msgEl) msgEl.scrollTop = msgEl.scrollHeight;
+
+  pane.querySelector('.chat-back-btn')?.addEventListener('click', () => {
+    const layout = pane.closest('.chat-layout');
+    if (layout) delete layout.dataset.mobileView;
+    content.querySelectorAll('.chat-thread-item').forEach(el => el.classList.remove('active'));
+  });
 
   $('#chat-compose').onsubmit = async e => {
     e.preventDefault();

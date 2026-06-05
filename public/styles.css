@@ -2126,9 +2126,23 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .chat-message-pane-empty, .chat-loading { display: flex; align-items: center; justify-content: center; flex: 1; color: var(--muted); font-size: 14px; }
 .chat-empty { color: var(--muted); font-size: 13px; padding: 16px; margin: 0; }
 
+/* Chat back button (desktop: hidden; mobile: shown in pane header) */
+.chat-back-btn { display: none; background: none; border: 0; font-size: 28px; font-weight: 250; color: var(--text); cursor: pointer; padding: 0 10px 0 0; line-height: 1; transform: translateY(-1px); }
+
+/* Hub home Chat panel rows */
+.hub-chat-avatar { width: 18px; height: 18px; font-size: 10px; flex-shrink: 0; }
+.hub-chat-msg { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.hub-chat-msg strong { font-size: 11px; color: var(--muted); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hub-chat-msg span { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* Chat mobile */
 @media (max-width: 700px) {
-  .chat-layout { grid-template-columns: 1fr; height: auto; min-height: 0; }
-  .chat-thread-list { max-height: 240px; border-right: 0; border-bottom: 1px solid var(--border); }
-  .chat-message-pane { height: 400px; }
+  .chat-layout { grid-template-columns: 1fr; height: auto; min-height: 0; border-radius: 12px; }
+  .chat-thread-list { max-height: 50vh; border-right: 0; border-bottom: 1px solid var(--border); }
+  .chat-message-pane { height: 60vh; min-height: 300px; }
+  /* When a thread is open on mobile, hide thread list and expand message pane */
+  .chat-layout[data-mobile-view="messages"] .chat-thread-list { display: none; }
+  .chat-layout[data-mobile-view="messages"] .chat-message-pane { height: 80vh; }
+  .chat-back-btn { display: inline-block; }
+  .chat-compose textarea { font-size: 16px; } /* prevent iOS zoom */
 }
