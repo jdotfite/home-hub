@@ -9,6 +9,7 @@ test('vercel config routes api and spa pages', () => {
   const config = JSON.parse(readFileSync('vercel.json', 'utf8'));
   assert.deepEqual(config.rewrites, [
     { source: '/api/(.*)', destination: '/api/index.js' },
+    { source: '/', destination: '/api/index.js' },
     { source: '/(login|inbox|today|future|grocery|projects|done)', destination: '/api/index.js' },
   ]);
   assert.ok(existsSync('api/index.js'));
@@ -120,7 +121,11 @@ test('household auth protects app pages and api when enabled', async () => {
   const base = `http://127.0.0.1:${server.address().port}`;
 
   try {
-    let res = await fetch(`${base}/today`, { redirect: 'manual' });
+    let res = await fetch(`${base}/`, { redirect: 'manual' });
+    assert.equal(res.status, 302);
+    assert.match(res.headers.get('location'), /^\/login\?next=/);
+
+    res = await fetch(`${base}/today`, { redirect: 'manual' });
     assert.equal(res.status, 302);
     assert.match(res.headers.get('location'), /^\/login\?next=/);
 

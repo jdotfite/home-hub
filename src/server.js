@@ -11,10 +11,11 @@ import { authStatus, login, loginPage, logout, requireEinkAuth, requireHousehold
 export function createApp() {
   const app = express();
   app.use(express.json());
-  app.use(express.static('public'));
+  app.use(express.static('public', { index: false }));
 
   const indexHtml = fileURLToPath(new URL('../public/index.html', import.meta.url));
   const page = () => (_req, res) => res.sendFile(indexHtml);
+  app.get('/', requirePageAuth, (_req, res) => res.redirect('/today'));
   app.get('/login', loginPage);
   app.get(['/inbox', '/today', '/future', '/grocery', '/projects', '/done'], requirePageAuth, page());
 
