@@ -1,9 +1,13 @@
-const CACHE_NAME = 'todo-app-v18-remove-eink-page';
+const CACHE_NAME = 'todo-hub-v2';
 const APP_SHELL = [
   '/',
+  '/home',
   '/today',
-  '/app.js',
-  '/styles.css',
+  '/calendar',
+  '/grocery',
+  '/documents',
+  '/app.js?v=hub-pwa-2',
+  '/styles.css?v=hub-pwa-2',
   '/manifest.webmanifest',
   '/icon.svg',
 ];
@@ -23,10 +27,10 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
-  if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname.startsWith('/api/') || url.pathname === '/login') return;
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('/today')));
+    event.respondWith(fetch(request).catch(() => caches.match('/home')));
     return;
   }
-  event.respondWith(caches.match(request).then(cached => cached || fetch(request)));
+  event.respondWith(caches.match(request).then(cached => cached || caches.match(url.pathname) || fetch(request)));
 });

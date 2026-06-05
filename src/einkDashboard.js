@@ -6,7 +6,7 @@ const execFileAsync = promisify(execFile);
 const GOOGLE_API = process.env.GOOGLE_API_SCRIPT || `${process.env.HERMES_HOME || `${process.env.HOME}/.hermes`}/skills/productivity/google-workspace/scripts/google_api.py`;
 const FAMILY_CALENDAR_ID = process.env.FAMILY_CALENDAR_ID || 'family12925651382350424080@group.calendar.google.com';
 const FACT_CACHE_MS = Number(process.env.EINK_FACT_CACHE_MS || 60 * 60 * 1000);
-const CALENDAR_DAYS = Number(process.env.EINK_CALENDAR_DAYS || 3);
+const CALENDAR_DAYS = Number(process.env.EINK_CALENDAR_DAYS || 14);
 const CALENDAR_MAX = Number(process.env.EINK_CALENDAR_MAX || 8);
 
 let factCache = null;
@@ -128,9 +128,9 @@ async function calendarEventsFromGoogleApi() {
   })).filter(event => event.summary);
 }
 
-async function calendarEvents() {
+export async function calendarEvents({ respectEnabled = true } = {}) {
   try {
-    if (process.env.EINK_CALENDAR_ENABLED === 'false') return [];
+    if (respectEnabled && process.env.EINK_CALENDAR_ENABLED === 'false') return [];
     const icsEvents = await calendarEventsFromIcs();
     if (icsEvents) return icsEvents;
     return await calendarEventsFromGoogleApi();

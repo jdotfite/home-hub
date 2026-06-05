@@ -5,7 +5,8 @@ import { addSubtask, createTask, updateSubtask, deleteSubtask, updateTask, compl
 import { createGroceryItem, listGroceryItems, listRecentGroceryItems, readdGroceryItem, updateGroceryItem, clearCheckedGroceryItems, deleteGroceryItem, quickAdd } from './grocery.js';
 import { runTodoCommand } from './discordParser.js';
 import { alexaRoute } from './alexa.js';
-import { einkDashboard } from './einkDashboard.js';
+import { einkDashboard, calendarEvents } from './einkDashboard.js';
+import { listDocuments } from './documents.js';
 import { authStatus, login, loginPage, logout, requireEinkAuth, requireHouseholdAuth, requirePageAuth } from './auth.js';
 
 export function createApp() {
@@ -15,9 +16,9 @@ export function createApp() {
 
   const indexHtml = fileURLToPath(new URL('../public/index.html', import.meta.url));
   const page = () => (_req, res) => res.sendFile(indexHtml);
-  app.get('/', requirePageAuth, (_req, res) => res.redirect('/today'));
+  app.get('/', requirePageAuth, (_req, res) => res.redirect('/home'));
   app.get('/login', loginPage);
-  app.get(['/inbox', '/today', '/future', '/grocery', '/projects', '/done'], requirePageAuth, page());
+  app.get(['/home', '/inbox', '/today', '/future', '/grocery', '/calendar', '/documents', '/projects', '/done'], requirePageAuth, page());
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
   app.get('/api/auth/status', authStatus);
@@ -66,6 +67,14 @@ export function createApp() {
 
   app.get('/api/projects', async (_req, res, next) => {
     try { res.json({ projects: await listProjects() }); } catch (err) { next(err); }
+  });
+
+  app.get('/api/calendar', async (_req, res, next) => {
+    try { res.json({ events: await calendarEvents({ respectEnabled: false }) }); } catch (err) { next(err); }
+  });
+
+  app.get('/api/documents', (_req, res) => {
+    res.json({ documents: listDocuments() });
   });
 
   app.get('/api/grocery', async (req, res, next) => {

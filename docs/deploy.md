@@ -37,11 +37,11 @@ If `KV_REST_API_URL` and `KV_REST_API_TOKEN` are missing, the app falls back to 
 Before sharing the Vercel URL, set these environment variables:
 
 ```text
-HOUSEHOLD_PASSWORD=<shared-family-password>
+HOUSEHOLD_PIN=<4-digit-pin>
 AUTH_SECRET=<long-random-string>
 ```
 
-When `HOUSEHOLD_PASSWORD` is set, app pages redirect to `/login` and `/api/*` routes require a valid login session. `AUTH_SECRET` signs the HttpOnly session cookie; make it a different long random value from the household password.
+When `HOUSEHOLD_PIN` is set, app pages redirect to `/login` and `/api/*` routes require a valid login session. `AUTH_SECRET` signs the HttpOnly session cookie; make it a different long random value from the household PIN. `HOUSEHOLD_PASSWORD` still works as a backward-compatible fallback, but the current app UX is PIN-first.
 
 Optional integration tokens:
 
@@ -101,7 +101,7 @@ Optional tuning:
 
 ```text
 EINK_CALENDAR_ENABLED=true
-EINK_CALENDAR_DAYS=3
+EINK_CALENDAR_DAYS=14
 EINK_CALENDAR_MAX=8
 EINK_FACTS_ENABLED=true
 EINK_FACT_CACHE_MS=3600000
@@ -140,7 +140,7 @@ Expected health response:
 { "ok": true }
 ```
 
-If household auth is enabled, `/today` and `/grocery` should redirect to `/login` until you enter the household password.
+If household auth is enabled, `/home`, `/today`, and `/grocery` should redirect to `/login` until you enter the household PIN.
 
 ## 7. Alexa skill setup
 

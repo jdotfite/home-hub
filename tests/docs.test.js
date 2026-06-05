@@ -19,7 +19,7 @@ test('deployment guide documents vercel kv, auth, calendar, and alexa setup', ()
   const guide = readFileSync('docs/deploy.md', 'utf8');
   assert.match(guide, /KV_REST_API_URL/);
   assert.match(guide, /KV_REST_API_TOKEN/);
-  assert.match(guide, /HOUSEHOLD_PASSWORD/);
+  assert.match(guide, /HOUSEHOLD_PIN/);
   assert.match(guide, /GOOGLE_CALENDAR_ICAL_URL/);
   assert.match(guide, /\/api\/eink\/dashboard/);
   assert.match(guide, /ALEXA_API_TOKEN/);

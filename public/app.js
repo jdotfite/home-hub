@@ -7,9 +7,12 @@ let quickReaddDeleteMode = false;
 function todayString() { return new Date().toISOString().slice(0, 10); }
 function routeView() {
   const path = location.pathname;
+  if (path === '/' || path === '/home') return { key: 'home', title: 'Home', subtitle: 'Today at a glance for the whole household.', home: true };
   if (path === '/today') return { key: 'today', title: 'Today', subtitle: 'Due today, overdue, or intentionally undated.', query: 'view=today', filters: true };
   if (path === '/future') return { key: 'future', title: 'Future', subtitle: 'Scheduled tasks that are not ready for today yet.', future: true, filters: true };
   if (path === '/grocery') return { key: 'grocery', title: 'Grocery', grocery: true };
+  if (path === '/calendar') return { key: 'calendar', title: 'Family Calendar', calendar: true };
+  if (path === '/documents') return { key: 'documents', title: 'Documents', documents: true };
   if (path === '/done') return { key: 'done', title: 'Done', subtitle: 'Completed tasks.', query: 'view=done' };
   if (path === '/projects') return { key: 'projects', title: 'Projects', projects: true };
   return { key: 'inbox', title: 'Inbox', subtitle: 'Unsorted tasks waiting to be clarified or scheduled.', query: 'view=inbox', filters: true };
@@ -30,6 +33,9 @@ async function render() {
   await refreshProjectOptions();
   const view = routeView();
   setBodyView(view.key);
+  if (view.home) return renderHome();
+  if (view.calendar) return renderCalendar();
+  if (view.documents) return renderDocuments();
   if (view.projects) return renderProjects();
   if (view.grocery) return renderGrocery();
 
@@ -77,18 +83,22 @@ function summaryCards(tasks) {
 function viewHeader(title, subtitle = '', showFilters = false, count = null) {
   const mobileTitle = title === 'Today' ? 'Today’s Task' : title;
   const countLabel = Number.isInteger(count) ? ` (${count})` : '';
-  return `<div class="mobile-appbar" aria-label="Mobile navigation"><button type="button" onclick="history.length > 1 ? history.back() : location.href='/today'" aria-label="Back">‹</button></div>
+  const eyebrow = title === 'Home' ? 'Household Hub' : title === 'Family Calendar' ? 'Family Calendar' : title === 'Documents' ? 'Household Documents' : 'Personal tasks';
+  return `<div class="mobile-appbar" aria-label="Mobile navigation"><button type="button" onclick="history.length > 1 ? history.back() : location.href='/home'" aria-label="Back">‹</button></div>
     ${mobileCategoryNav()}
-    <div class="view-header"><div><p class="eyebrow">Personal tasks</p><h2>${escapeHtml(title)}</h2><h2 class="mobile-page-title">${escapeHtml(mobileTitle)}<span>${countLabel}</span></h2>${subtitle ? `<p>${escapeHtml(subtitle)}</p><p class="mobile-modified">Last modified: Today</p>` : ''}</div>${showFilters ? filterBar() : ''}</div>`;
+    <div class="view-header"><div><p class="eyebrow">${escapeHtml(eyebrow)}</p><h2>${escapeHtml(title)}</h2><h2 class="mobile-page-title">${escapeHtml(mobileTitle)}<span>${countLabel}</span></h2>${subtitle ? `<p>${escapeHtml(subtitle)}</p><p class="mobile-modified">Last modified: Today</p>` : ''}</div>${showFilters ? filterBar() : ''}</div>`;
 }
 
 function mobileCategoryNav() {
-  const path = location.pathname === '/' ? '/inbox' : location.pathname;
+  const path = location.pathname === '/' ? '/home' : location.pathname;
   const categories = [
-    ['/inbox', 'Inbox'],
+    ['/home', 'Home'],
     ['/today', 'Today'],
-    ['/future', 'Future'],
+    ['/calendar', 'Calendar'],
     ['/grocery', 'Grocery'],
+    ['/documents', 'Docs'],
+    ['/inbox', 'Inbox'],
+    ['/future', 'Future'],
     ['/done', 'Done'],
   ];
   return `<nav class="mobile-category-nav" aria-label="Categories">${categories.map(([href, label]) => `<a href="${href}" class="${path === href ? 'active' : ''}">${label}</a>`).join('')}</nav>`;
@@ -341,6 +351,97 @@ function bindTouchReorder() {
   });
 }
 
+async function renderHome() {
+  setActiveNav();
+  setBodyView('home');
+  const [{ tasks: allOpenTasks }, { events }, { items: groceryItems }, { documents }] = await Promise.all([
+    api('/api/tasks?status=open'),
+    api('/api/calendar'),
+    api('/api/grocery'),
+    api('/api/documents'),
+  ]);
+  const today = todayString();
+  const todayTasks = allOpenTasks.filter(t => !t.dueDate || t.dueDate <= today).slice(0, 5);
+  const upcoming = events.slice(0, 5);
+  const activeGrocery = groceryItems.filter(i => !i.checked);
+  const featuredDocs = documents.slice(0, 4);
+  content.innerHTML = viewHeader('Home', 'Family calendar, tasks, grocery, and docs in one sticky PWA.', false, todayTasks.length) + `
+    <section class="hub-hero">
+      <div><p class="eyebrow">Household Hub</p><h3>${friendlyDate(new Date())}</h3><p>One clean place for the family source of truth. E-paper is now an output; this is the control center.</p></div>
+      <div class="quick-capture-card"><label for="hub-capture">Quick capture</label><div><input id="hub-capture" placeholder="task, grocery milk, note, reminder…"><button id="hub-capture-add">Capture</button></div><small>Routes grocery/walmart text automatically; everything else becomes a task for now.</small></div>
+    </section>
+    <section class="hub-grid">
+      ${hubPanel('Today', '/today', todayTasks.length ? todayTasks.map(t => `<li><span>☐</span><strong>${escapeHtml(t.title)}</strong></li>`).join('') : '<li class="muted-row">No pressing tasks.</li>')}
+      ${hubPanel('Family Calendar', '/calendar', upcoming.length ? upcoming.map(calendarEventRow).join('') : '<li class="muted-row">No upcoming events.</li>')}
+      ${hubPanel('Grocery', '/grocery', `<li><span>🛒</span><strong>${activeGrocery.length} open item${activeGrocery.length === 1 ? '' : 's'}</strong></li>${activeGrocery.slice(0, 4).map(i => `<li><span>•</span>${escapeHtml(i.quantity ? i.quantity + ' ' : '')}${escapeHtml(i.title)}</li>`).join('')}`)}
+      ${hubPanel('Documents', '/documents', featuredDocs.map(doc => `<li><span>${escapeHtml(doc.icon)}</span><strong>${escapeHtml(doc.title)}</strong><small>${escapeHtml(doc.category)}</small></li>`).join(''))}
+    </section>`;
+  $('#hub-capture-add').onclick = quickCapture;
+  $('#hub-capture').addEventListener('keydown', e => { if (e.key === 'Enter') quickCapture(); });
+}
+
+function hubPanel(title, href, body) {
+  return `<article class="hub-panel"><header><h3>${escapeHtml(title)}</h3><a href="${href}">Open →</a></header><ul>${body}</ul></article>`;
+}
+
+async function quickCapture() {
+  const input = $('#hub-capture') || $('#new-title');
+  const text = input?.value.trim();
+  if (!text) return;
+  await api('/api/quick-add', { method: 'POST', body: JSON.stringify({ text, source: 'hub' }) });
+  input.value = '';
+  renderHome();
+}
+
+async function renderCalendar() {
+  setActiveNav();
+  setBodyView('calendar');
+  const { events } = await api('/api/calendar');
+  const grouped = events.reduce((acc, event) => {
+    (acc[event.date] ||= []).push(event);
+    return acc;
+  }, {});
+  content.innerHTML = viewHeader('Family Calendar', '14-day read-only view from the Family Google Calendar feed.', false, events.length) + `
+    <section class="calendar-shell">
+      <div class="calendar-summary"><strong>${events.length}</strong><span>upcoming family event${events.length === 1 ? '' : 's'}</span><small>Private iCal URL stays server-side.</small></div>
+      <div class="calendar-list">${Object.entries(grouped).length ? Object.entries(grouped).map(([date, dayEvents]) => `<section class="calendar-day"><time datetime="${escapeAttribute(date)}">${escapeHtml(formatDateLabel(date))}</time><div>${dayEvents.map(calendarEventCard).join('')}</div></section>`).join('') : '<div class="empty-state">No Family Calendar events in the current window.</div>'}</div>
+    </section>`;
+}
+
+function calendarEventRow(event) {
+  return `<li><span>📅</span><strong>${escapeHtml(event.summary)}</strong><small>${escapeHtml(formatDateLabel(event.date))} · ${escapeHtml(event.time)}</small></li>`;
+}
+
+function calendarEventCard(event) {
+  return `<article class="calendar-event"><span>${escapeHtml(event.time)}</span><strong>${escapeHtml(event.summary)}</strong></article>`;
+}
+
+async function renderDocuments() {
+  setActiveNav();
+  setBodyView('documents');
+  const { documents } = await api('/api/documents');
+  const grouped = documents.reduce((acc, doc) => {
+    (acc[doc.category] ||= []).push(doc);
+    return acc;
+  }, {});
+  content.innerHTML = viewHeader('Documents', 'Google Drive-backed household documents are mocked here until Google auth/Drive browsing is wired.', false, documents.length) + `
+    <section class="document-intro"><strong>Drive phase placeholder</strong><span>These cards define the UX and categories now; later they will store Drive file IDs instead of blobs.</span></section>
+    <section class="document-grid">${Object.entries(grouped).map(([category, docs]) => `<div class="document-category"><h3>${escapeHtml(category)}</h3>${docs.map(documentCard).join('')}</div>`).join('')}</section>`;
+}
+
+function documentCard(doc) {
+  return `<article class="document-card"><span class="doc-icon">${escapeHtml(doc.icon)}</span><div><strong>${escapeHtml(doc.title)}</strong><p>${escapeHtml(doc.description)}</p><small>${escapeHtml(doc.visibility)} · ${escapeHtml(doc.updated)} · ${escapeHtml(doc.source)}</small></div></article>`;
+}
+
+function formatDateLabel(date) {
+  const d = new Date(`${date}T12:00:00`);
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function friendlyDate(date) {
+  return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
 async function renderProjects() {
   setActiveNav();
   const { projects } = await api('/api/projects');
@@ -489,17 +590,23 @@ async function refreshProjectOptions() {
 }
 
 function setActiveNav() {
-  const path = location.pathname === '/' ? '/inbox' : location.pathname;
+  const path = location.pathname === '/' ? '/home' : location.pathname;
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active', a.dataset.nav === path));
 }
 
 function setBodyView(viewKey) {
   document.body.dataset.view = viewKey || 'inbox';
   const fab = document.querySelector('.fab-add');
-  if (fab) fab.setAttribute('aria-label', viewKey === 'grocery' ? 'Add grocery item' : 'Add task');
+  if (fab) fab.setAttribute('aria-label', viewKey === 'grocery' ? 'Add grocery item' : viewKey === 'home' ? 'Capture item' : 'Add task');
 }
 
 function openPrimaryAdd() {
+  if (document.body.dataset.view === 'home') {
+    const input = $('#hub-capture');
+    input?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    input?.focus();
+    return;
+  }
   if (document.body.dataset.view === 'grocery') {
     const input = $('#grocery-title');
     input?.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -532,9 +639,9 @@ document.querySelector('.fab-add')?.addEventListener('click', openPrimaryAdd);
 document.addEventListener('keydown', e => {
   if (e.target.matches('input, select, [contenteditable="true"]')) return;
   if (e.key.toLowerCase() === 'n') { e.preventDefault(); $('#new-title').focus(); }
-  if (e.key === '1') location.href = '/today';
-  if (e.key === '2') location.href = '/future';
-  if (e.key === '3') location.href = '/inbox';
+  if (e.key === '1') location.href = '/home';
+  if (e.key === '2') location.href = '/today';
+  if (e.key === '3') location.href = '/calendar';
   if (e.key === '4') location.href = '/grocery';
 });
 

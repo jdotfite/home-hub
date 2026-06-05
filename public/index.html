@@ -3,50 +3,54 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Todo</title>
+  <title>Household Hub</title>
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/icon.svg" />
   <meta name="theme-color" content="#111111" />
-  <link rel="stylesheet" href="/styles.css?v=ux-polish-18" />
+  <link rel="stylesheet" href="/styles.css?v=hub-pwa-2" />
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar" aria-label="Workspace navigation">
-      <a class="brand" href="/today" aria-label="Todo home">
-        <span class="brand-mark" aria-hidden="true">✓</span>
-        <span><strong>Todo</strong><small>Family workspace</small></span>
+      <a class="brand" href="/home" aria-label="Household Hub home">
+        <span class="brand-mark" aria-hidden="true">⌂</span>
+        <span><strong>Hub</strong><small>Family workspace</small></span>
       </a>
-      <nav aria-label="Main views">
-        <a href="/inbox" data-nav="/inbox"><span>↧</span> Inbox</a>
+      <nav aria-label="Main views" class="sticky-hub-nav">
+        <a href="/home" data-nav="/home"><span>🏠</span> Home</a>
         <a href="/today" data-nav="/today"><span>◷</span> Today</a>
-        <a href="/future" data-nav="/future"><span>▣</span> Future</a>
+        <a href="/calendar" data-nav="/calendar"><span>📅</span> Calendar</a>
         <a href="/grocery" data-nav="/grocery"><span>🛒</span> Grocery</a>
+        <a href="/documents" data-nav="/documents"><span>📄</span> Docs</a>
+        <a href="/inbox" data-nav="/inbox"><span>↧</span> Inbox</a>
+        <a href="/future" data-nav="/future"><span>▣</span> Future</a>
         <a href="/projects" data-nav="/projects"><span>▦</span> Projects</a>
         <a href="/done" data-nav="/done"><span>✓</span> Done</a>
       </nav>
       <div class="sidebar-note">
         <strong>Quick keys</strong>
-        <span>N to add · 1 Today · 4 Grocery</span>
+        <span>N capture · 1 Home · 2 Today · 3 Calendar · 4 Grocery</span>
       </div>
     </aside>
 
     <section class="workspace">
       <header class="topbar">
         <div class="mobile-greeting">
-          <strong>Hello Jack,</strong>
-          <span>You have work today</span>
+          <strong>Household Hub</strong>
+          <span>Calendar, tasks, grocery, docs</span>
         </div>
-        <div class="breadcrumb">Tasks <span>/</span> Personal command center</div>
+        <div class="breadcrumb">Household <span>/</span> Private command center</div>
         <div class="topbar-actions" aria-label="View tools">
-          <button type="button" data-group-by="project">Group by Project</button>
-          <a class="ghost-link" href="/projects">Projects</a>
+          <a class="ghost-link" href="/home">Home</a>
+          <a class="ghost-link" href="/calendar">Calendar</a>
+          <a class="ghost-link" href="/documents">Docs</a>
         </div>
       </header>
 
       <main>
-        <section class="composer quick-add" aria-label="Add a new task">
-          <input id="new-title" placeholder="Add a task…" autofocus />
+        <section class="composer quick-add" aria-label="Quick capture">
+          <input id="new-title" placeholder="Capture task, grocery, note…" autofocus />
           <input id="new-project" placeholder="project (optional)" list="project-options" />
           <input id="new-due" type="date" aria-label="Due date" />
           <select id="new-recurrence" aria-label="Repeat">
@@ -55,8 +59,8 @@
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
           </select>
-          <button id="add">Add</button>
-          <button class="mobile-add-panel" type="button" aria-hidden="true">Add task</button>
+          <button id="add">Capture</button>
+          <button class="mobile-add-panel" type="button" aria-hidden="true">Capture</button>
           <datalist id="project-options"></datalist>
         </section>
         <section id="content"></section>
@@ -64,9 +68,9 @@
     </section>
   </div>
 
-  <button class="fab-add" type="button" aria-label="Add item">+</button>
+  <button class="fab-add" type="button" aria-label="Capture item">+</button>
 
-  <script src="/app.js?v=ux-polish-18" type="module"></script>
+  <script src="/app.js?v=hub-pwa-2" type="module"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js'));

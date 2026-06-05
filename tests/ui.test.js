@@ -104,7 +104,7 @@ test('grocery mobile route behaves like a focused shopping PWA', () => {
   assert.doesNotMatch(html, /onclick="document\.querySelector\('\.quick-add'\)/);
   assert.match(js, /function setBodyView/);
   assert.match(js, /document\.body\.dataset\.view/);
-  assert.match(js, /viewKey === 'grocery' \? 'Add grocery item' : 'Add task'/);
+  assert.match(js, /viewKey === 'grocery' \? 'Add grocery item' : viewKey === 'home' \? 'Capture item' : 'Add task'/);
   assert.match(js, /function openPrimaryAdd/);
   assert.match(js, /#grocery-title/);
   assert.match(css, /Grocery PWA focus/);
@@ -122,14 +122,29 @@ test('walmart grocery links prefer in-store fulfillment search results', () => {
 });
 
 
+test('household hub adds home and calendar app views', () => {
+  const html = readFileSync('public/index.html', 'utf8');
+  const js = readFileSync('public/app.js', 'utf8');
+  const css = readFileSync('public/styles.css', 'utf8');
+
+  assert.match(html, /data-nav="\/home"/);
+  assert.match(html, /data-nav="\/calendar"/);
+  assert.match(js, /function renderHome/);
+  assert.match(js, /function renderCalendar/);
+  assert.match(js, /\/api\/calendar/);
+  assert.match(js, /Family Calendar/);
+  assert.match(css, /\.hub-grid/);
+  assert.match(css, /\.calendar-list/);
+});
 test('brand and navigation polish uses favicon, flat yellow, and cleaner sidebar icons', () => {
   const html = readFileSync('public/index.html', 'utf8');
   const css = readFileSync('public/styles.css', 'utf8');
 
   assert.match(html, /rel="icon" href="\/icon\.svg"/);
   assert.match(html, /rel="apple-touch-icon" href="\/icon\.svg"/);
-  assert.match(html, /styles\.css\?v=ux-polish-18/);
-  assert.match(html, /app\.js\?v=ux-polish-18/);
+  assert.match(html, /styles\.css\?v=hub-pwa-2/);
+  assert.match(html, /app\.js\?v=hub-pwa-2/);
+  assert.match(html, /<a href="\/home" data-nav="\/home"><span>🏠<\/span> Home<\/a>/);
   assert.match(html, /<a href="\/inbox" data-nav="\/inbox"><span>↧<\/span> Inbox<\/a>/);
   assert.match(html, /<a href="\/projects" data-nav="\/projects"><span>▦<\/span> Projects<\/a>/);
   assert.doesNotMatch(html, /data-nav="\/eink"/);
@@ -138,4 +153,32 @@ test('brand and navigation polish uses favicon, flat yellow, and cleaner sidebar
   assert.match(css, /\.brand-mark[\s\S]*border-radius: 9px/);
   assert.match(css, /\.walmart-link,[\s\S]*font-weight: 500/);
   assert.match(css, /recent-grocery-chip:hover[\s\S]*background: #303030/);
+});
+
+test('household hub includes documents, capture, sticky navigation, and PWA home launch', () => {
+  const html = readFileSync('public/index.html', 'utf8');
+  const js = readFileSync('public/app.js', 'utf8');
+  const css = readFileSync('public/styles.css', 'utf8');
+  const manifest = JSON.parse(readFileSync('public/manifest.webmanifest', 'utf8'));
+  const sw = readFileSync('public/service-worker.js', 'utf8');
+  const documents = readFileSync('src/documents.js', 'utf8');
+
+  assert.match(html, /<title>Household Hub<\/title>/);
+  assert.match(html, /data-nav="\/documents"/);
+  assert.match(html, /styles\.css\?v=hub-pwa-2/);
+  assert.match(html, /app\.js\?v=hub-pwa-2/);
+  assert.match(js, /function renderDocuments/);
+  assert.match(js, /function quickCapture/);
+  assert.match(js, /\/api\/documents/);
+  assert.match(documents, /Insurance Cards/);
+  assert.match(css, /\.sticky-hub-nav/);
+  assert.match(css, /\.document-grid/);
+  assert.match(css, /body\[data-view="home"\] \.fab-add::after[\s\S]*Capture/);
+  assert.equal(manifest.name, 'Household Hub');
+  assert.equal(manifest.short_name, 'Hub');
+  assert.equal(manifest.start_url, '/home');
+  assert.match(sw, /todo-hub-v2/);
+  assert.match(sw, /'\/home'/);
+  assert.match(sw, /'\/calendar'/);
+  assert.match(sw, /'\/documents'/);
 });

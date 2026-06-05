@@ -2,13 +2,48 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const COOKIE_NAME = 'todo_session';
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_FAILURES = 5;
+const loginFailures = new Map();
+
+function clientKey(req) {
+  return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+function loginFailure(req) {
+  const key = clientKey(req);
+  const now = Date.now();
+  const current = loginFailures.get(key);
+  const next = !current || current.resetAt < now
+    ? { count: 1, resetAt: now + LOGIN_WINDOW_MS }
+    : { count: current.count + 1, resetAt: current.resetAt };
+  loginFailures.set(key, next);
+}
+
+function loginLimited(req) {
+  const entry = loginFailures.get(clientKey(req));
+  if (!entry) return false;
+  if (entry.resetAt < Date.now()) {
+    loginFailures.delete(clientKey(req));
+    return false;
+  }
+  return entry.count >= LOGIN_MAX_FAILURES;
+}
+
+function clearLoginFailures(req) {
+  loginFailures.delete(clientKey(req));
+}
 
 function authEnabled() {
-  return Boolean(process.env.HOUSEHOLD_PASSWORD);
+  return Boolean(process.env.HOUSEHOLD_PIN || process.env.HOUSEHOLD_PASSWORD);
+}
+
+function credential() {
+  return process.env.HOUSEHOLD_PIN || process.env.HOUSEHOLD_PASSWORD || '';
 }
 
 function secret() {
-  return process.env.AUTH_SECRET || process.env.HOUSEHOLD_PASSWORD || 'local-dev-secret';
+  return process.env.AUTH_SECRET || credential() || 'local-dev-secret';
 }
 
 function sign(value) {
@@ -77,7 +112,7 @@ export function requireHouseholdAuth(req, res, next) {
 
 export function requirePageAuth(req, res, next) {
   if (!authEnabled() || hasSession(req)) return next();
-  res.redirect(`/login?next=${encodeURIComponent(req.originalUrl || '/today')}`);
+  res.redirect(`/login?next=${encodeURIComponent(req.originalUrl || '/home')}`);
 }
 
 export function requireEinkAuth(req, res, next) {
@@ -95,7 +130,7 @@ export function loginPage(_req, res) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Todo Login</title>
+  <title>Household Hub Login</title>
   <style>
     :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #151515; color: #f5f5f0; }
     body { min-height: 100vh; margin: 0; display: grid; place-items: center; background: radial-gradient(circle at top, #2a2a24, #151515 48%); }
@@ -103,28 +138,29 @@ export function loginPage(_req, res) {
     h1 { margin: 0; font-size: 28px; letter-spacing: -.04em; }
     p { margin: 0; color: #aaa; line-height: 1.45; }
     input, button { border: 0; border-radius: 14px; padding: 14px 16px; font: inherit; }
-    input { background: #111; color: #fff; outline: 1px solid #333; }
+    input { background: #111; color: #fff; outline: 1px solid #333; text-align: center; font-size: 24px; letter-spacing: .42em; }
     button { background: #ffd60a; color: #111; font-weight: 750; cursor: pointer; }
     .error { color: #ff9f9f; min-height: 1.2em; }
   </style>
 </head>
 <body>
   <form id="login-form">
-    <h1>Family Todo</h1>
-    <p>Enter the household password to open the todo and grocery app.</p>
-    <input name="password" type="password" autocomplete="current-password" placeholder="Household password" autofocus required />
+    <h1>Household Hub</h1>
+    <p>Enter the Household PIN to open calendar, tasks, grocery, and docs.</p>
+    <input name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password" placeholder="••••" aria-label="Household PIN" autofocus required />
     <button>Unlock</button>
     <p class="error" id="error"></p>
   </form>
   <script>
     const params = new URLSearchParams(location.search);
-    const next = params.get('next') || '/today';
+    const rawNext = params.get('next') || '/home';
+    const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/home';
     document.querySelector('#login-form').addEventListener('submit', async event => {
       event.preventDefault();
-      const password = new FormData(event.currentTarget).get('password');
-      const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
-      if (res.ok) location.href = next.startsWith('/') ? next : '/today';
-      else document.querySelector('#error').textContent = 'That password did not work.';
+      const pin = new FormData(event.currentTarget).get('pin');
+      const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin, password: pin }) });
+      if (res.ok) location.href = next.startsWith('/') ? next : '/home';
+      else document.querySelector('#error').textContent = 'That PIN did not work.';
     });
   </script>
 </body>
@@ -133,9 +169,13 @@ export function loginPage(_req, res) {
 
 export function login(req, res) {
   if (!authEnabled()) return res.json({ ok: true, enabled: false });
-  if (!safeEqual(req.body?.password || '', process.env.HOUSEHOLD_PASSWORD)) {
-    return res.status(401).json({ error: 'Invalid password' });
+  if (loginLimited(req)) return res.status(429).json({ error: 'Too many PIN attempts. Try again later.' });
+  const supplied = req.body?.pin || req.body?.password || '';
+  if (!safeEqual(supplied, credential())) {
+    loginFailure(req);
+    return res.status(401).json({ error: 'Invalid PIN' });
   }
+  clearLoginFailures(req);
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   res.setHeader('Set-Cookie', `${COOKIE_NAME}=${encodeURIComponent(makeSessionCookie())}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE_SECONDS}${secure}`);
   res.json({ ok: true });

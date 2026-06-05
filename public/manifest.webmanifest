@@ -1,8 +1,8 @@
 {
-  "name": "Todo",
-  "short_name": "Todo",
-  "description": "Personal todo and grocery list app.",
-  "start_url": "/today",
+  "name": "Household Hub",
+  "short_name": "Hub",
+  "description": "Private family command center for tasks, grocery, calendar, documents, and e-paper output.",
+  "start_url": "/home",
   "scope": "/",
   "display": "standalone",
   "background_color": "#111111",
