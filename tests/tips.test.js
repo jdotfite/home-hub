@@ -345,6 +345,22 @@ test('exportTipsCsv escapes quotes in fields', async () => {
   assert.match(csv, /"said ""great night""/);
 });
 
+test('exportTipsCsv neutralizes spreadsheet formula injection in text fields', async () => {
+  await resetForTests();
+  const { exportTipsCsv } = await import('../src/modules/tips/data.js');
+  await createTipEntry({
+    date: '2025-03-15',
+    cashTips: 10,
+    cardTips: 5,
+    location: '=IMPORTXML("https://example.test")',
+    notes: ' @SUM(1,2)',
+  });
+
+  const csv = await exportTipsCsv();
+  assert.match(csv, /"'=IMPORTXML\(""https:\/\/example\.test""\)"/);
+  assert.match(csv, /"' @SUM\(1,2\)"/);
+});
+
 test('GET /api/tips/export.csv returns CSV content type and data', async () => {
   await withServer(async base => {
     await fetch(`${base}/api/tips`, {

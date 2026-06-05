@@ -138,7 +138,11 @@ export async function getTipSummary() {
 export async function exportTipsCsv() {
   const entries = await listTipEntries();
   const headers = ['date', 'shift_type', 'location', 'cash_tips', 'card_tips', 'total', 'hours', 'notes'];
-  const csvCell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const neutralizeCsvFormula = v => {
+    const text = String(v ?? '');
+    return /^[\s\t\r]*[=+\-@]/.test(text) ? `'${text}` : text;
+  };
+  const csvCell = v => `"${neutralizeCsvFormula(v).replace(/"/g, '""')}"`;
   const rows = [headers.map(csvCell).join(',')];
   for (const e of entries) {
     rows.push([
