@@ -16,6 +16,7 @@ function routeView() {
   if (path === '/calendar') return { key: 'calendar', title: 'Family Calendar', calendar: true };
   if (path === '/documents') return { key: 'documents', title: 'Documents', documents: true };
   if (path === '/tips') return { key: 'tips', title: 'Tips', tips: true };
+  if (path === '/chat') return { key: 'chat', title: 'Chat', chat: true };
   if (path === '/done') return { key: 'done', title: 'Done', subtitle: 'Completed tasks.', query: 'view=done' };
   if (path === '/projects') return { key: 'projects', title: 'Projects', projects: true };
   return { key: 'inbox', title: 'Inbox', subtitle: 'Unsorted tasks waiting to be clarified or scheduled.', query: 'view=inbox', filters: true };
@@ -41,6 +42,7 @@ async function render() {
   if (view.calendar) return renderCalendar();
   if (view.documents) return renderDocuments();
   if (view.tips) return renderTips();
+  if (view.chat) return renderChat();
   if (view.projects) return renderProjects();
   if (view.grocery) return renderGrocery();
 
@@ -640,6 +642,134 @@ async function renderProjects() {
     content.innerHTML = viewHeader(labelizeProject(a.dataset.project), 'Open tasks in this project.', true) + (tasks.length ? workSectionsHtml(applyFilter(tasks)) : emptyState('Project'));
     bindTaskControls();
   });
+}
+
+async function renderChat() {
+  setActiveNav();
+  setBodyView('chat');
+  const { threads } = await api('/api/chat/threads');
+  content.innerHTML = viewHeader('Chat', 'Household message board.') + `
+    <div class="chat-layout">
+      <section class="chat-thread-list" id="chat-thread-list">
+        <div class="chat-thread-header">
+          <span>Threads</span>
+          <button type="button" class="chat-new-thread-btn" id="chat-new-thread-btn">+ New</button>
+        </div>
+        <form id="chat-new-thread-form" class="chat-new-thread-form" hidden>
+          <input type="text" id="chat-thread-title" placeholder="Thread title…" maxlength="120" autocomplete="off">
+          <button type="submit">Create</button>
+          <button type="button" id="chat-cancel-thread">Cancel</button>
+        </form>
+        <div id="chat-threads-inner">
+          ${threads.length ? threads.map(chatThreadItemHtml).join('') : '<p class="chat-empty">No threads yet.</p>'}
+        </div>
+      </section>
+      <section class="chat-message-pane" id="chat-message-pane">
+        <div class="chat-message-pane-empty">Select a thread to read messages.</div>
+      </section>
+    </div>`;
+
+  $('#chat-new-thread-btn').onclick = () => {
+    $('#chat-new-thread-form').hidden = false;
+    $('#chat-thread-title').focus();
+    $('#chat-new-thread-btn').hidden = true;
+  };
+  $('#chat-cancel-thread').onclick = () => {
+    $('#chat-new-thread-form').hidden = true;
+    $('#chat-new-thread-btn').hidden = false;
+  };
+  $('#chat-new-thread-form').onsubmit = async e => {
+    e.preventDefault();
+    const title = $('#chat-thread-title').value.trim();
+    if (!title) return;
+    await api('/api/chat/threads', { method: 'POST', body: JSON.stringify({ title }) });
+    renderChat();
+  };
+
+  content.querySelectorAll('.chat-thread-item').forEach(item => {
+    item.querySelector('.chat-thread-btn').onclick = () => openChatThread(item.dataset.id, item.dataset.title);
+    const pinBtn = item.querySelector('.chat-pin-btn');
+    if (pinBtn) pinBtn.onclick = async e => {
+      e.stopPropagation();
+      const pinned = pinBtn.dataset.pinned === 'true';
+      await api(`/api/chat/threads/${item.dataset.id}`, { method: 'PATCH', body: JSON.stringify({ pinned: !pinned }) });
+      renderChat();
+    };
+    const delBtn = item.querySelector('.chat-del-thread-btn');
+    if (delBtn) delBtn.onclick = async e => {
+      e.stopPropagation();
+      if (!confirm(`Delete thread "${item.dataset.title}" and all its messages?`)) return;
+      await api(`/api/chat/threads/${item.dataset.id}`, { method: 'DELETE' });
+      renderChat();
+    };
+  });
+}
+
+async function openChatThread(threadId, threadTitle) {
+  const pane = $('#chat-message-pane');
+  if (!pane) return;
+  pane.innerHTML = '<div class="chat-loading">Loading…</div>';
+
+  content.querySelectorAll('.chat-thread-item').forEach(el => el.classList.toggle('active', el.dataset.id === threadId));
+
+  const { messages } = await api(`/api/chat/threads/${threadId}/messages`);
+  pane.innerHTML = `
+    <div class="chat-pane-header">
+      <strong>${escapeHtml(threadTitle)}</strong>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      ${messages.length ? messages.map(m => chatMessageHtml(m, threadId)).join('') : '<p class="chat-empty">No messages yet. Say something!</p>'}
+    </div>
+    <form class="chat-compose" id="chat-compose">
+      <textarea id="chat-body" placeholder="Write a message…" rows="2" maxlength="2000"></textarea>
+      <button type="submit">Send</button>
+    </form>`;
+
+  const msgEl = $('#chat-messages');
+  if (msgEl) msgEl.scrollTop = msgEl.scrollHeight;
+
+  $('#chat-compose').onsubmit = async e => {
+    e.preventDefault();
+    const body = $('#chat-body').value.trim();
+    if (!body) return;
+    await api(`/api/chat/threads/${threadId}/messages`, { method: 'POST', body: JSON.stringify({ body }) });
+    openChatThread(threadId, threadTitle);
+  };
+  $('#chat-body').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#chat-compose').requestSubmit(); }
+  });
+
+  pane.querySelectorAll('.chat-msg-delete').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm('Delete this message?')) return;
+      await api(`/api/chat/threads/${threadId}/messages/${btn.dataset.id}`, { method: 'DELETE' });
+      openChatThread(threadId, threadTitle);
+    };
+  });
+}
+
+function chatThreadItemHtml(thread) {
+  const badge = thread.pinned ? '<span class="chat-pin-badge">📌</span>' : '';
+  const count = thread.messageCount > 0 ? `<small>${thread.messageCount} msg${thread.messageCount === 1 ? '' : 's'}</small>` : '<small>Empty</small>';
+  return `<div class="chat-thread-item" data-id="${escapeAttribute(thread.id)}" data-title="${escapeAttribute(thread.title)}">
+    <button type="button" class="chat-thread-btn">${badge}<span class="chat-thread-title">${escapeHtml(thread.title)}</span>${count}</button>
+    <div class="chat-thread-actions">
+      <button type="button" class="chat-pin-btn" data-pinned="${thread.pinned}" title="${thread.pinned ? 'Unpin' : 'Pin'}">${thread.pinned ? '📌' : '·'}</button>
+      <button type="button" class="chat-del-thread-btn" title="Delete thread">✕</button>
+    </div>
+  </div>`;
+}
+
+const PROFILE_COLORS = { justin: '#7dd3fc', wife: '#f0abfc', family: '#ffd60a' };
+
+function chatMessageHtml(msg, threadId) {
+  const color = PROFILE_COLORS[msg.profileId] || '#ffd60a';
+  const name = msg.profileId.charAt(0).toUpperCase() + msg.profileId.slice(1);
+  const time = new Date(msg.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  return `<article class="chat-message">
+    <div class="chat-msg-meta"><span class="chat-avatar" style="background:${color}">${escapeHtml(name[0])}</span><strong>${escapeHtml(name)}</strong><time>${escapeHtml(time)}</time><button type="button" class="chat-msg-delete" data-id="${escapeAttribute(msg.id)}" data-thread="${escapeAttribute(threadId)}" title="Delete">✕</button></div>
+    <p class="chat-msg-body">${escapeHtml(msg.body)}</p>
+  </article>`;
 }
 
 async function renderGrocery() {

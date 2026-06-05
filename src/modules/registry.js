@@ -3,6 +3,7 @@ import { documentsModule } from './documents/module.js';
 import { groceryModule } from './grocery/module.js';
 import { tasksModule } from './tasks/module.js';
 import { tipsModule } from './tips/module.js';
+import { chatModule } from './chat/module.js';
 
 export const homeModule = {
   id: 'home',
@@ -22,6 +23,7 @@ export const modules = [
   groceryModule,
   documentsModule,
   tipsModule,
+  chatModule,
 ];
 
 export const appPageRoutes = modules.flatMap(module => module.routes);

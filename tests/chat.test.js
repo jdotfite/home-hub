@@ -1,0 +1,272 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { resetForTests } from '../src/db.js';
+import { createApp } from '../src/server.js';
+import {
+  listThreads,
+  createThread,
+  updateThread,
+  deleteThread,
+  listMessages,
+  postMessage,
+  deleteMessage,
+} from '../src/modules/chat/data.js';
+
+async function withServer(fn) {
+  await resetForTests();
+  const app = createApp();
+  const server = await new Promise(resolve => {
+    const s = app.listen(0, () => resolve(s));
+  });
+  try {
+    await fn(`http://127.0.0.1:${server.address().port}`);
+  } finally {
+    server.close();
+  }
+}
+
+// --- Data layer: threads ---
+
+test('chat threads can be created, listed, updated, and deleted', async () => {
+  await resetForTests();
+
+  const thread = await createThread({ title: 'General' });
+  assert.ok(thread.id);
+  assert.equal(thread.title, 'General');
+  assert.equal(thread.pinned, false);
+  assert.ok(thread.createdAt);
+
+  let threads = await listThreads();
+  assert.equal(threads.length, 1);
+  assert.equal(threads[0].id, thread.id);
+  assert.equal(threads[0].messageCount, 0);
+
+  const updated = await updateThread(thread.id, { title: 'Family Chat', pinned: true });
+  assert.equal(updated.title, 'Family Chat');
+  assert.equal(updated.pinned, true);
+
+  await deleteThread(thread.id);
+  threads = await listThreads();
+  assert.equal(threads.length, 0);
+});
+
+test('createThread rejects missing or blank title', async () => {
+  await resetForTests();
+  await assert.rejects(() => createThread({}), { message: /title/ });
+  await assert.rejects(() => createThread({ title: '   ' }), { message: /title/ });
+  await assert.rejects(() => createThread({ title: 'x'.repeat(121) }), { message: /120/ });
+});
+
+test('threads are sorted: pinned first, then by most recent activity', async () => {
+  await resetForTests();
+
+  const a = await createThread({ title: 'Alpha' });
+  const b = await createThread({ title: 'Beta', pinned: true });
+  const c = await createThread({ title: 'Gamma' });
+
+  await postMessage(c.id, { profileId: 'family', body: 'Hello' });
+
+  const threads = await listThreads();
+  assert.equal(threads[0].id, b.id, 'pinned thread is first');
+  assert.equal(threads[1].id, c.id, 'thread with latest message is next');
+  assert.equal(threads[2].id, a.id, 'oldest inactive thread is last');
+});
+
+test('deleteThread also removes its messages', async () => {
+  await resetForTests();
+
+  const thread = await createThread({ title: 'Temp' });
+  await postMessage(thread.id, { profileId: 'family', body: 'Will be deleted' });
+
+  await deleteThread(thread.id);
+
+  const threads = await listThreads();
+  assert.equal(threads.length, 0);
+});
+
+test('updateThread and deleteThread throw 404 for unknown id', async () => {
+  await resetForTests();
+  await assert.rejects(() => updateThread('no-such', { title: 'X' }), { message: /not found/i });
+  await assert.rejects(() => deleteThread('no-such'), { message: /not found/i });
+});
+
+// --- Data layer: messages ---
+
+test('messages can be posted, listed, and deleted within a thread', async () => {
+  await resetForTests();
+
+  const thread = await createThread({ title: 'Chat' });
+  const msg = await postMessage(thread.id, { profileId: 'justin', body: 'Hello household!' });
+
+  assert.ok(msg.id);
+  assert.equal(msg.threadId, thread.id);
+  assert.equal(msg.profileId, 'justin');
+  assert.equal(msg.body, 'Hello household!');
+
+  const messages = await listMessages(thread.id);
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].id, msg.id);
+
+  const threads = await listThreads();
+  assert.equal(threads[0].messageCount, 1);
+
+  await deleteMessage(thread.id, msg.id);
+  const after = await listMessages(thread.id);
+  assert.equal(after.length, 0);
+});
+
+test('postMessage rejects blank body', async () => {
+  await resetForTests();
+  const thread = await createThread({ title: 'Chat' });
+  await assert.rejects(() => postMessage(thread.id, { profileId: 'family', body: '' }), { message: /body/ });
+  await assert.rejects(() => postMessage(thread.id, { profileId: 'family', body: 'x'.repeat(2001) }), { message: /2000/ });
+});
+
+test('postMessage falls back to family for unknown profileId', async () => {
+  await resetForTests();
+  const thread = await createThread({ title: 'Chat' });
+  const msg = await postMessage(thread.id, { profileId: 'hacker', body: 'Hi' });
+  assert.equal(msg.profileId, 'family');
+});
+
+test('postMessage to unknown thread throws 404', async () => {
+  await resetForTests();
+  await assert.rejects(() => postMessage('no-such', { profileId: 'family', body: 'Hi' }), { message: /not found/i });
+});
+
+test('messages within a thread are returned oldest-first', async () => {
+  await resetForTests();
+  const thread = await createThread({ title: 'Chat' });
+  await postMessage(thread.id, { profileId: 'justin', body: 'First' });
+  await postMessage(thread.id, { profileId: 'wife', body: 'Second' });
+  await postMessage(thread.id, { profileId: 'family', body: 'Third' });
+
+  const messages = await listMessages(thread.id);
+  assert.deepEqual(messages.map(m => m.body), ['First', 'Second', 'Third']);
+});
+
+// --- API layer ---
+
+test('GET /api/chat/threads returns empty list initially', async () => {
+  await withServer(async base => {
+    const res = await fetch(`${base}/api/chat/threads`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.deepEqual(body.threads, []);
+  });
+});
+
+test('full thread + message API flow', async () => {
+  await withServer(async base => {
+    let res = await fetch(`${base}/api/chat/threads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Reminders' }),
+    });
+    assert.equal(res.status, 201);
+    const { thread } = await res.json();
+    assert.equal(thread.title, 'Reminders');
+
+    res = await fetch(`${base}/api/chat/threads/${thread.id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: 'Doctor appt Friday 3pm' }),
+    });
+    assert.equal(res.status, 201);
+    const { message } = await res.json();
+    assert.equal(message.body, 'Doctor appt Friday 3pm');
+    assert.equal(message.profileId, 'family');
+
+    res = await fetch(`${base}/api/chat/threads/${thread.id}/messages`);
+    assert.equal(res.status, 200);
+    const msgs = (await res.json()).messages;
+    assert.equal(msgs.length, 1);
+
+    res = await fetch(`${base}/api/chat/threads/${thread.id}/messages/${message.id}`, { method: 'DELETE' });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { removed: 1 });
+  });
+});
+
+test('PATCH /api/chat/threads/:id can pin a thread', async () => {
+  await withServer(async base => {
+    let res = await fetch(`${base}/api/chat/threads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Notes' }),
+    });
+    const { thread } = await res.json();
+    assert.equal(thread.pinned, false);
+
+    res = await fetch(`${base}/api/chat/threads/${thread.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinned: true }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.thread.pinned, true);
+  });
+});
+
+test('POST /api/chat/threads returns 400 for missing title', async () => {
+  await withServer(async base => {
+    const res = await fetch(`${base}/api/chat/threads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('POST message returns 400 for missing body', async () => {
+  await withServer(async base => {
+    let res = await fetch(`${base}/api/chat/threads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Chat' }),
+    });
+    const { thread } = await res.json();
+
+    res = await fetch(`${base}/api/chat/threads/${thread.id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: '' }),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('chat API requires household auth when enabled', async () => {
+  const previousPassword = process.env.HOUSEHOLD_PASSWORD;
+  const previousSecret = process.env.AUTH_SECRET;
+  process.env.HOUSEHOLD_PASSWORD = 'family-pass';
+  process.env.AUTH_SECRET = 'test-auth-secret';
+
+  await resetForTests();
+  const app = createApp();
+  const server = await new Promise(resolve => {
+    const s = app.listen(0, () => resolve(s));
+  });
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    let res = await fetch(`${base}/api/chat/threads`);
+    assert.equal(res.status, 401);
+
+    res = await fetch(`${base}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'family-pass' }),
+    });
+    const cookie = res.headers.get('set-cookie');
+
+    res = await fetch(`${base}/api/chat/threads`, { headers: { cookie } });
+    assert.equal(res.status, 200);
+  } finally {
+    if (previousPassword === undefined) delete process.env.HOUSEHOLD_PASSWORD; else process.env.HOUSEHOLD_PASSWORD = previousPassword;
+    if (previousSecret === undefined) delete process.env.AUTH_SECRET; else process.env.AUTH_SECRET = previousSecret;
+    server.close();
+  }
+});

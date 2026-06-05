@@ -9,6 +9,7 @@ import { authStatus, login, loginPage, logout, requireEinkAuth, requireHousehold
 import { registerCalendarRoutes } from './modules/calendar/api.js';
 import { registerDocumentRoutes } from './modules/documents/api.js';
 import { registerTipsRoutes } from './modules/tips/api.js';
+import { registerChatRoutes } from './modules/chat/api.js';
 import { registerGroceryRoutes } from './modules/grocery/api.js';
 import { registerTaskRoutes } from './modules/tasks/api.js';
 import { appPageRoutes } from './modules/registry.js';
@@ -44,6 +45,7 @@ export function createApp() {
   registerDocumentRoutes(app);
   registerGroceryRoutes(app);
   registerTipsRoutes(app);
+  registerChatRoutes(app);
 
   app.get('/api/eink/today', async (_req, res, next) => {
     try { res.json(await einkToday()); } catch (err) { next(err); }
