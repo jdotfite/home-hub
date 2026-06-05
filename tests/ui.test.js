@@ -142,8 +142,8 @@ test('brand and navigation polish uses favicon, flat yellow, and cleaner sidebar
 
   assert.match(html, /rel="icon" href="\/icon\.svg"/);
   assert.match(html, /rel="apple-touch-icon" href="\/icon\.svg"/);
-  assert.match(html, /styles\.css\?v=hub-pwa-2/);
-  assert.match(html, /app\.js\?v=hub-pwa-2/);
+  assert.match(html, /styles\.css\?v=hub-pwa-3/);
+  assert.match(html, /app\.js\?v=hub-pwa-3/);
   assert.match(html, /<a href="\/home" data-nav="\/home"><span>🏠<\/span> Home<\/a>/);
   assert.match(html, /<a href="\/inbox" data-nav="\/inbox"><span>↧<\/span> Inbox<\/a>/);
   assert.match(html, /<a href="\/projects" data-nav="\/projects"><span>▦<\/span> Projects<\/a>/);
@@ -165,19 +165,23 @@ test('household hub includes documents, capture, sticky navigation, and PWA home
 
   assert.match(html, /<title>Household Hub<\/title>/);
   assert.match(html, /data-nav="\/documents"/);
-  assert.match(html, /styles\.css\?v=hub-pwa-2/);
-  assert.match(html, /app\.js\?v=hub-pwa-2/);
+  assert.match(html, /styles\.css\?v=hub-pwa-3/);
+  assert.match(html, /app\.js\?v=hub-pwa-3/);
   assert.match(js, /function renderDocuments/);
   assert.match(js, /function quickCapture/);
   assert.match(js, /\/api\/documents/);
   assert.match(documents, /Insurance Cards/);
   assert.match(css, /\.sticky-hub-nav/);
   assert.match(css, /\.document-grid/);
+  assert.match(css, /Mobile overflow guardrails for the household hub routes/);
+  assert.match(css, /body\[data-view="home"\] main,[\s\S]*body\[data-view="documents"\] main[\s\S]*padding-inline: 16px/);
+  assert.match(css, /\.calendar-event,[\s\S]*\.document-card,[\s\S]*\.quick-capture-card div[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(css, /\.document-card strong,[\s\S]*overflow-wrap: anywhere/);
   assert.match(css, /body\[data-view="home"\] \.fab-add::after[\s\S]*Capture/);
   assert.equal(manifest.name, 'Household Hub');
   assert.equal(manifest.short_name, 'Hub');
   assert.equal(manifest.start_url, '/home');
-  assert.match(sw, /todo-hub-v2/);
+  assert.match(sw, /todo-hub-v3/);
   assert.match(sw, /'\/home'/);
   assert.match(sw, /'\/calendar'/);
   assert.match(sw, /'\/documents'/);

@@ -1901,3 +1901,103 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
   .calendar-event, .document-card, .hub-panel li { border-radius: 6px; }
   .document-intro { display: grid; border-radius: 8px; }
 }
+
+/* Mobile overflow guardrails for the household hub routes. */
+@media (max-width: 720px) {
+  html,
+  body,
+  .app-shell,
+  .workspace,
+  main,
+  #content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  html,
+  body {
+    overflow-x: clip;
+  }
+
+  body[data-view="home"] main,
+  body[data-view="calendar"] main,
+  body[data-view="documents"] main {
+    padding-inline: 16px;
+  }
+
+  .hub-hero,
+  .hub-grid,
+  .hub-panel,
+  .hub-panel li,
+  .calendar-shell,
+  .calendar-list,
+  .calendar-day,
+  .calendar-day > div,
+  .calendar-event,
+  .document-intro,
+  .document-grid,
+  .document-category,
+  .document-card,
+  .quick-capture-card,
+  .quick-capture-card div {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .hub-hero,
+  .hub-grid,
+  .calendar-shell,
+  .calendar-day,
+  .calendar-event,
+  .document-grid,
+  .document-card,
+  .quick-capture-card div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hub-panel {
+    padding: 14px;
+  }
+
+  .hub-panel header,
+  .document-intro {
+    align-items: start;
+  }
+
+  .hub-panel li {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .hub-panel li small {
+    grid-column: 2;
+    overflow-wrap: anywhere;
+  }
+
+  .calendar-event {
+    gap: 4px;
+  }
+
+  .calendar-event strong,
+  .document-card strong,
+  .document-card p,
+  .document-card small,
+  .hub-panel li strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .document-card {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .doc-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+  }
+}
