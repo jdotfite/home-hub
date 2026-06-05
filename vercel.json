@@ -2,6 +2,6 @@
   "version": 2,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/(inbox|today|future|grocery|projects|done)", "destination": "/index.html" }
+    { "source": "/(login|inbox|today|future|grocery|projects|done)", "destination": "/api/index.js" }
   ]
 }
