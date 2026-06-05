@@ -142,8 +142,9 @@ test('brand and navigation polish uses favicon, flat yellow, and cleaner sidebar
 
   assert.match(html, /rel="icon" href="\/icon\.svg"/);
   assert.match(html, /rel="apple-touch-icon" href="\/icon\.svg"/);
-  assert.match(html, /styles\.css\?v=hub-pwa-3/);
-  assert.match(html, /app\.js\?v=hub-pwa-3/);
+  assert.match(html, /styles\.css\?v=hub-pwa-4/);
+  assert.match(html, /app\.js\?v=hub-pwa-4/);
+  assert.match(html, /<img src="\/house-logo\.svg" alt="" \/>/);
   assert.match(html, /<a href="\/home" data-nav="\/home"><span>🏠<\/span> Home<\/a>/);
   assert.match(html, /<a href="\/inbox" data-nav="\/inbox"><span>↧<\/span> Inbox<\/a>/);
   assert.match(html, /<a href="\/projects" data-nav="\/projects"><span>▦<\/span> Projects<\/a>/);
@@ -151,6 +152,7 @@ test('brand and navigation polish uses favicon, flat yellow, and cleaner sidebar
   assert.match(css, /Final brand\/accent cleanup/);
   assert.match(css, /Sidebar icon normalization/);
   assert.match(css, /\.brand-mark[\s\S]*border-radius: 9px/);
+  assert.match(css, /\.brand-mark img[\s\S]*width: 34px/);
   assert.match(css, /\.walmart-link,[\s\S]*font-weight: 500/);
   assert.match(css, /recent-grocery-chip:hover[\s\S]*background: #303030/);
 });
@@ -162,11 +164,13 @@ test('household hub includes documents, capture, sticky navigation, and PWA home
   const manifest = JSON.parse(readFileSync('public/manifest.webmanifest', 'utf8'));
   const sw = readFileSync('public/service-worker.js', 'utf8');
   const documents = readFileSync('src/documents.js', 'utf8');
+  const icon = readFileSync('public/icon.svg', 'utf8');
+  const houseLogo = readFileSync('public/house-logo.svg', 'utf8');
 
   assert.match(html, /<title>Household Hub<\/title>/);
   assert.match(html, /data-nav="\/documents"/);
-  assert.match(html, /styles\.css\?v=hub-pwa-3/);
-  assert.match(html, /app\.js\?v=hub-pwa-3/);
+  assert.match(html, /styles\.css\?v=hub-pwa-4/);
+  assert.match(html, /app\.js\?v=hub-pwa-4/);
   assert.match(js, /function renderDocuments/);
   assert.match(js, /function quickCapture/);
   assert.match(js, /\/api\/documents/);
@@ -174,6 +178,10 @@ test('household hub includes documents, capture, sticky navigation, and PWA home
   assert.match(css, /\.sticky-hub-nav/);
   assert.match(css, /\.document-grid/);
   assert.match(css, /Mobile overflow guardrails for the household hub routes/);
+  assert.match(css, /Mobile nav whitespace\/scroll polish/);
+  assert.match(css, /\.mobile-category-nav[\s\S]*overflow-x: auto/);
+  assert.match(css, /\.mobile-category-nav[\s\S]*-webkit-overflow-scrolling: touch/);
+  assert.match(css, /\.mobile-appbar[\s\S]*height: 0/);
   assert.match(css, /body\[data-view="home"\] main,[\s\S]*body\[data-view="documents"\] main[\s\S]*padding-inline: 16px/);
   assert.match(css, /\.calendar-event,[\s\S]*\.document-card,[\s\S]*\.quick-capture-card div[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(css, /\.document-card strong,[\s\S]*overflow-wrap: anywhere/);
@@ -181,8 +189,11 @@ test('household hub includes documents, capture, sticky navigation, and PWA home
   assert.equal(manifest.name, 'Household Hub');
   assert.equal(manifest.short_name, 'Hub');
   assert.equal(manifest.start_url, '/home');
-  assert.match(sw, /todo-hub-v3/);
+  assert.match(sw, /todo-hub-v4/);
   assert.match(sw, /'\/home'/);
   assert.match(sw, /'\/calendar'/);
   assert.match(sw, /'\/documents'/);
+  assert.match(sw, /'\/house-logo\.svg'/);
+  assert.match(icon, /viewBox="0 0 512 512"/);
+  assert.match(houseLogo, /viewBox="0 0 1030\.96 375\.23"/);
 });

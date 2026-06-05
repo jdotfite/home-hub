@@ -1,4 +1,4 @@
-const CACHE_NAME = 'todo-hub-v3';
+const CACHE_NAME = 'todo-hub-v4';
 const APP_SHELL = [
   '/',
   '/home',
@@ -6,10 +6,11 @@ const APP_SHELL = [
   '/calendar',
   '/grocery',
   '/documents',
-  '/app.js?v=hub-pwa-3',
-  '/styles.css?v=hub-pwa-3',
+  '/app.js?v=hub-pwa-4',
+  '/styles.css?v=hub-pwa-4',
   '/manifest.webmanifest',
   '/icon.svg',
+  '/house-logo.svg',
 ];
 
 self.addEventListener('install', event => {

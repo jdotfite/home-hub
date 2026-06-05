@@ -1693,6 +1693,13 @@ button:focus-visible,
   color: #111;
   box-shadow: none;
 }
+.brand-mark img {
+  display: block;
+  width: 34px;
+  max-width: 82%;
+  height: auto;
+  color: currentColor;
+}
 
 .brand-mark,
 #add,
@@ -1999,5 +2006,44 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
     width: 36px;
     height: 36px;
     border-radius: 9px;
+  }
+}
+
+/* Mobile nav whitespace/scroll polish: no wasted top gap, category pills swipe horizontally. */
+@media (max-width: 720px) {
+  main {
+    padding-top: 10px;
+  }
+
+  .mobile-appbar {
+    height: 0;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .mobile-appbar button {
+    display: none;
+  }
+
+  .mobile-category-nav {
+    width: auto;
+    margin: 0 -16px 16px;
+    padding: 0 16px 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  }
+
+  .mobile-category-nav a {
+    scroll-snap-align: start;
+  }
+
+  .view-header {
+    margin-top: 0;
   }
 }

@@ -8,13 +8,13 @@
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/icon.svg" />
   <meta name="theme-color" content="#111111" />
-  <link rel="stylesheet" href="/styles.css?v=hub-pwa-3" />
+  <link rel="stylesheet" href="/styles.css?v=hub-pwa-4" />
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar" aria-label="Workspace navigation">
       <a class="brand" href="/home" aria-label="Household Hub home">
-        <span class="brand-mark" aria-hidden="true">⌂</span>
+        <span class="brand-mark" aria-hidden="true"><img src="/house-logo.svg" alt="" /></span>
         <span><strong>Hub</strong><small>Family workspace</small></span>
       </a>
       <nav aria-label="Main views" class="sticky-hub-nav">
@@ -70,7 +70,7 @@
 
   <button class="fab-add" type="button" aria-label="Capture item">+</button>
 
-  <script src="/app.js?v=hub-pwa-3" type="module"></script>
+  <script src="/app.js?v=hub-pwa-4" type="module"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js'));
