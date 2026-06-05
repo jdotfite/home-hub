@@ -73,6 +73,21 @@ test('threads are sorted: pinned first, then by most recent activity', async () 
   assert.equal(threads[2].id, a.id, 'oldest inactive thread is last');
 });
 
+test('thread list includes latest message preview metadata', async () => {
+  await resetForTests();
+  const thread = await createThread({ title: 'Dinner' });
+
+  await postMessage(thread.id, { profileId: 'justin', body: 'First idea' });
+  await postMessage(thread.id, { profileId: 'wife', body: 'Latest dinner plan for tonight' });
+
+  const [listed] = await listThreads();
+  assert.equal(listed.id, thread.id);
+  assert.equal(listed.messageCount, 2);
+  assert.equal(listed.lastMessage.body, 'Latest dinner plan for tonight');
+  assert.equal(listed.lastMessage.profileId, 'wife');
+  assert.ok(listed.lastMessage.createdAt);
+});
+
 test('deleteThread also removes its messages', async () => {
   await resetForTests();
 

@@ -2102,8 +2102,11 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .chat-thread-item { display: flex; align-items: center; border-bottom: 1px solid #2a2a2a; transition: background .1s; }
 .chat-thread-item:hover, .chat-thread-item.active { background: #2a2a2a; }
 .chat-thread-btn { flex: 1; display: flex; align-items: center; gap: 6px; padding: 12px 14px; background: none; border: 0; color: var(--text); font-size: 14px; text-align: left; cursor: pointer; min-width: 0; }
-.chat-thread-btn small { color: var(--muted); font-size: 11px; margin-left: auto; white-space: nowrap; flex-shrink: 0; }
-.chat-thread-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-thread-btn small.chat-thread-count { color: var(--muted); font-size: 11px; margin-left: auto; white-space: nowrap; flex-shrink: 0; }
+.chat-thread-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.chat-thread-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-thread-preview { color: var(--muted); font-size: 11px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-thread-preview-empty { opacity: .75; }
 .chat-pin-badge { font-size: 12px; flex-shrink: 0; }
 .chat-thread-actions { display: flex; gap: 2px; padding: 0 8px; opacity: 0; transition: opacity .1s; }
 .chat-thread-item:hover .chat-thread-actions { opacity: 1; }

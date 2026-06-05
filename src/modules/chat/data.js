@@ -40,13 +40,24 @@ export async function listThreads() {
   const messages = store.chatMessages || [];
 
   return threads
-    .map(t => ({
-      ...t,
-      messageCount: messages.filter(m => m.threadId === t.id).length,
-      lastMessageAt: messages
+    .map(t => {
+      const threadMessages = messages
         .filter(m => m.threadId === t.id)
-        .reduce((latest, m) => (m.createdAt > latest ? m.createdAt : latest), t.createdAt),
-    }))
+        .map(normalizeMessage)
+        .filter(Boolean)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const lastMessage = threadMessages[0] || null;
+      return {
+        ...t,
+        messageCount: threadMessages.length,
+        lastMessageAt: lastMessage?.createdAt || t.createdAt,
+        lastMessage: lastMessage ? {
+          body: lastMessage.body,
+          profileId: lastMessage.profileId,
+          createdAt: lastMessage.createdAt,
+        } : null,
+      };
+    })
     .sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       return b.lastMessageAt.localeCompare(a.lastMessageAt);

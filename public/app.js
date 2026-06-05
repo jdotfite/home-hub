@@ -769,9 +769,12 @@ async function openChatThread(threadId, threadTitle) {
 
 function chatThreadItemHtml(thread) {
   const badge = thread.pinned ? '<span class="chat-pin-badge">📌</span>' : '';
-  const count = thread.messageCount > 0 ? `<small>${thread.messageCount} msg${thread.messageCount === 1 ? '' : 's'}</small>` : '<small>Empty</small>';
+  const count = thread.messageCount > 0 ? `${thread.messageCount} msg${thread.messageCount === 1 ? '' : 's'}` : 'Empty';
+  const preview = thread.lastMessage?.body
+    ? `<small class="chat-thread-preview">${escapeHtml(thread.lastMessage.body.length > 48 ? thread.lastMessage.body.slice(0, 48) + '…' : thread.lastMessage.body)}</small>`
+    : '<small class="chat-thread-preview chat-thread-preview-empty">No messages yet</small>';
   return `<div class="chat-thread-item" data-id="${escapeAttribute(thread.id)}" data-title="${escapeAttribute(thread.title)}">
-    <button type="button" class="chat-thread-btn">${badge}<span class="chat-thread-title">${escapeHtml(thread.title)}</span>${count}</button>
+    <button type="button" class="chat-thread-btn">${badge}<span class="chat-thread-copy"><span class="chat-thread-title">${escapeHtml(thread.title)}</span>${preview}</span><small class="chat-thread-count">${escapeHtml(count)}</small></button>
     <div class="chat-thread-actions">
       <button type="button" class="chat-pin-btn" data-pinned="${thread.pinned}" title="${thread.pinned ? 'Unpin' : 'Pin'}">${thread.pinned ? '📌' : '·'}</button>
       <button type="button" class="chat-del-thread-btn" title="Delete thread">✕</button>
