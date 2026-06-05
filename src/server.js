@@ -1,13 +1,16 @@
 import express from 'express';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { addSubtask, createTask, updateSubtask, deleteSubtask, updateTask, completeTask, listTasks, reorderTasks, listProjects, einkToday } from './tasks.js';
-import { createGroceryItem, listGroceryItems, listRecentGroceryItems, readdGroceryItem, updateGroceryItem, clearCheckedGroceryItems, deleteGroceryItem, quickAdd } from './grocery.js';
+import { einkToday } from './modules/tasks/data.js';
 import { runTodoCommand } from './discordParser.js';
 import { alexaRoute } from './alexa.js';
-import { einkDashboard, calendarEvents } from './einkDashboard.js';
-import { listDocuments } from './documents.js';
+import { einkDashboard } from './einkDashboard.js';
 import { authStatus, login, loginPage, logout, requireEinkAuth, requireHouseholdAuth, requirePageAuth } from './auth.js';
+import { registerCalendarRoutes } from './modules/calendar/api.js';
+import { registerDocumentRoutes } from './modules/documents/api.js';
+import { registerGroceryRoutes } from './modules/grocery/api.js';
+import { registerTaskRoutes } from './modules/tasks/api.js';
+import { appPageRoutes } from './modules/registry.js';
 
 export function createApp() {
   const app = express();
@@ -18,7 +21,7 @@ export function createApp() {
   const page = () => (_req, res) => res.sendFile(indexHtml);
   app.get('/', requirePageAuth, (_req, res) => res.redirect('/home'));
   app.get('/login', loginPage);
-  app.get(['/home', '/inbox', '/today', '/future', '/grocery', '/calendar', '/documents', '/projects', '/done'], requirePageAuth, page());
+  app.get(appPageRoutes, requirePageAuth, page());
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
   app.get('/api/auth/status', authStatus);
@@ -33,81 +36,10 @@ export function createApp() {
     return requireHouseholdAuth(req, res, next);
   });
 
-  app.get('/api/tasks', async (req, res, next) => {
-    try { res.json({ tasks: await listTasks(req.query) }); } catch (err) { next(err); }
-  });
-
-  app.post('/api/tasks', async (req, res, next) => {
-    try { res.status(201).json({ task: await createTask(req.body) }); } catch (err) { next(err); }
-  });
-
-  app.patch('/api/tasks/:id', async (req, res, next) => {
-    try { res.json({ task: await updateTask(req.params.id, req.body) }); } catch (err) { next(err); }
-  });
-
-  app.post('/api/tasks/:id/subtasks', async (req, res, next) => {
-    try { res.status(201).json(await addSubtask(req.params.id, req.body)); } catch (err) { next(err); }
-  });
-
-  app.patch('/api/tasks/:id/subtasks/:subtaskId', async (req, res, next) => {
-    try { res.json({ subtask: await updateSubtask(req.params.id, req.params.subtaskId, req.body) }); } catch (err) { next(err); }
-  });
-
-  app.delete('/api/tasks/:id/subtasks/:subtaskId', async (req, res, next) => {
-    try { res.json(await deleteSubtask(req.params.id, req.params.subtaskId)); } catch (err) { next(err); }
-  });
-
-  app.post('/api/tasks/:id/complete', async (req, res, next) => {
-    try { res.json({ task: await completeTask(req.params.id) }); } catch (err) { next(err); }
-  });
-
-  app.post('/api/tasks/reorder', async (req, res, next) => {
-    try { res.json({ tasks: await reorderTasks(req.body.ids) }); } catch (err) { next(err); }
-  });
-
-  app.get('/api/projects', async (_req, res, next) => {
-    try { res.json({ projects: await listProjects() }); } catch (err) { next(err); }
-  });
-
-  app.get('/api/calendar', async (_req, res, next) => {
-    try { res.json({ events: await calendarEvents({ respectEnabled: false }) }); } catch (err) { next(err); }
-  });
-
-  app.get('/api/documents', (_req, res) => {
-    res.json({ documents: listDocuments() });
-  });
-
-  app.get('/api/grocery', async (req, res, next) => {
-    try { res.json({ items: await listGroceryItems(req.query) }); } catch (err) { next(err); }
-  });
-
-  app.get('/api/grocery/recent', async (req, res, next) => {
-    try { res.json({ items: await listRecentGroceryItems(req.query.limit) }); } catch (err) { next(err); }
-  });
-
-  app.post('/api/grocery', async (req, res, next) => {
-    try { res.status(201).json({ item: await createGroceryItem(req.body) }); } catch (err) { next(err); }
-  });
-
-  app.patch('/api/grocery/:id', async (req, res, next) => {
-    try { res.json({ item: await updateGroceryItem(req.params.id, req.body) }); } catch (err) { next(err); }
-  });
-
-  app.delete('/api/grocery/:id', async (req, res, next) => {
-    try { res.json(await deleteGroceryItem(req.params.id)); } catch (err) { next(err); }
-  });
-
-  app.post('/api/grocery/:id/readd', async (req, res, next) => {
-    try { res.status(201).json({ item: await readdGroceryItem(req.params.id) }); } catch (err) { next(err); }
-  });
-
-  app.post('/api/grocery/clear-checked', async (_req, res, next) => {
-    try { res.json(await clearCheckedGroceryItems()); } catch (err) { next(err); }
-  });
-
-  app.post('/api/quick-add', async (req, res, next) => {
-    try { res.status(201).json(await quickAdd(req.body.text, req.body)); } catch (err) { next(err); }
-  });
+  registerTaskRoutes(app);
+  registerCalendarRoutes(app);
+  registerDocumentRoutes(app);
+  registerGroceryRoutes(app);
 
   app.get('/api/eink/today', async (_req, res, next) => {
     try { res.json(await einkToday()); } catch (err) { next(err); }
