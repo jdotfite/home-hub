@@ -1841,6 +1841,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* Household Hub sticky PWA interface: clean dark surfaces, restrained yellow accents. */
+.profile-switcher { display: grid; gap: 8px; margin: 16px 0 12px; padding: 12px; border: 1px solid #303030; border-radius: 16px; background: #1c1c1c; }
+.profile-pill { display: inline-flex; align-items: center; width: fit-content; padding: 6px 10px; border-radius: 999px; background: rgba(255, 214, 10, .12); color: #ffd60a; font-size: 12px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
+.profile-switcher select, #top-profile-select { min-width: 0; border: 1px solid #333; border-radius: 12px; background: #111; color: #f5f5f0; padding: 8px 10px; font: inherit; }
+.tips-placeholder { max-width: 760px; }
 .sticky-hub-nav { position: sticky; top: 88px; }
 .hub-hero {
   display: grid;

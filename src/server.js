@@ -11,6 +11,7 @@ import { registerDocumentRoutes } from './modules/documents/api.js';
 import { registerGroceryRoutes } from './modules/grocery/api.js';
 import { registerTaskRoutes } from './modules/tasks/api.js';
 import { appPageRoutes } from './modules/registry.js';
+import { registerProfileRoutes } from './profiles.js';
 
 export function createApp() {
   const app = express();
@@ -36,6 +37,7 @@ export function createApp() {
     return requireHouseholdAuth(req, res, next);
   });
 
+  registerProfileRoutes(app);
   registerTaskRoutes(app);
   registerCalendarRoutes(app);
   registerDocumentRoutes(app);

@@ -8,7 +8,7 @@
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/icon.svg" />
   <meta name="theme-color" content="#111111" />
-  <link rel="stylesheet" href="/styles.css?v=hub-pwa-4" />
+  <link rel="stylesheet" href="/styles.css?v=hub-pwa-5" />
 </head>
 <body>
   <div class="app-shell">
@@ -17,7 +17,11 @@
         <span class="brand-mark" aria-hidden="true"><img src="/house-logo.svg" alt="" /></span>
         <span><strong>Hub</strong><small>Family workspace</small></span>
       </a>
-      <nav aria-label="Main views" class="sticky-hub-nav">
+      <div class="profile-switcher" id="profile-switcher" aria-label="Active profile">
+        <span class="profile-pill">Family</span>
+        <select id="profile-select" aria-label="Switch household profile"></select>
+      </div>
+      <nav aria-label="Main views" class="sticky-hub-nav" data-module-nav>
         <a href="/home" data-nav="/home"><span>🏠</span> Home</a>
         <a href="/today" data-nav="/today"><span>◷</span> Today</a>
         <a href="/calendar" data-nav="/calendar"><span>📅</span> Calendar</a>
@@ -42,6 +46,7 @@
         </div>
         <div class="breadcrumb">Household <span>/</span> Private command center</div>
         <div class="topbar-actions" aria-label="View tools">
+          <select id="top-profile-select" aria-label="Switch household profile"></select>
           <a class="ghost-link" href="/home">Home</a>
           <a class="ghost-link" href="/calendar">Calendar</a>
           <a class="ghost-link" href="/documents">Docs</a>
@@ -70,7 +75,7 @@
 
   <button class="fab-add" type="button" aria-label="Capture item">+</button>
 
-  <script src="/app.js?v=hub-pwa-4" type="module"></script>
+  <script src="/app.js?v=hub-pwa-5" type="module"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js'));

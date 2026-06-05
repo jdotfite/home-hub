@@ -3,6 +3,8 @@ const content = $('#content');
 let activeFilter = 'all';
 let draggedId = null;
 let quickReaddDeleteMode = false;
+let activeProfile = null;
+let activeModules = [];
 
 function todayString() { return new Date().toISOString().slice(0, 10); }
 function routeView() {
@@ -13,6 +15,7 @@ function routeView() {
   if (path === '/grocery') return { key: 'grocery', title: 'Grocery', grocery: true };
   if (path === '/calendar') return { key: 'calendar', title: 'Family Calendar', calendar: true };
   if (path === '/documents') return { key: 'documents', title: 'Documents', documents: true };
+  if (path === '/tips') return { key: 'tips', title: 'Tips', tips: true };
   if (path === '/done') return { key: 'done', title: 'Done', subtitle: 'Completed tasks.', query: 'view=done' };
   if (path === '/projects') return { key: 'projects', title: 'Projects', projects: true };
   return { key: 'inbox', title: 'Inbox', subtitle: 'Unsorted tasks waiting to be clarified or scheduled.', query: 'view=inbox', filters: true };
@@ -29,6 +32,7 @@ async function api(path, options = {}) {
 }
 
 async function render() {
+  await loadProfileChrome();
   setActiveNav();
   await refreshProjectOptions();
   const view = routeView();
@@ -36,6 +40,7 @@ async function render() {
   if (view.home) return renderHome();
   if (view.calendar) return renderCalendar();
   if (view.documents) return renderDocuments();
+  if (view.tips) return renderTipsPlaceholder();
   if (view.projects) return renderProjects();
   if (view.grocery) return renderGrocery();
 
@@ -91,17 +96,25 @@ function viewHeader(title, subtitle = '', showFilters = false, count = null) {
 
 function mobileCategoryNav() {
   const path = location.pathname === '/' ? '/home' : location.pathname;
-  const categories = [
-    ['/home', 'Home'],
-    ['/today', 'Today'],
-    ['/calendar', 'Calendar'],
-    ['/grocery', 'Grocery'],
-    ['/documents', 'Docs'],
-    ['/inbox', 'Inbox'],
-    ['/future', 'Future'],
-    ['/done', 'Done'],
+  const modules = activeModules.length ? activeModules : [
+    { href: '/home', navLabel: 'Home' },
+    { href: '/today', navLabel: 'Today' },
+    { href: '/calendar', navLabel: 'Calendar' },
+    { href: '/grocery', navLabel: 'Grocery' },
+    { href: '/documents', navLabel: 'Docs' },
+    { href: '/inbox', navLabel: 'Inbox' },
+    { href: '/future', navLabel: 'Future' },
+    { href: '/done', navLabel: 'Done' },
   ];
-  return `<nav class="mobile-category-nav" aria-label="Categories">${categories.map(([href, label]) => `<a href="${href}" class="${path === href ? 'active' : ''}">${label}</a>`).join('')}</nav>`;
+  const links = modules.flatMap(module => module.id === 'tasks'
+    ? [
+      { href: '/today', navLabel: 'Today' },
+      { href: '/inbox', navLabel: 'Inbox' },
+      { href: '/future', navLabel: 'Future' },
+      { href: '/done', navLabel: 'Done' },
+    ]
+    : [module]);
+  return `<nav class="mobile-category-nav" aria-label="Categories">${links.map(module => `<a href="${escapeAttribute(module.href)}" class="${path === module.href ? 'active' : ''}">${escapeHtml(module.navLabel || module.label)}</a>`).join('')}</nav>`;
 }
 
 function filterBar() {
@@ -442,6 +455,16 @@ function friendlyDate(date) {
   return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
+async function renderTipsPlaceholder() {
+  setActiveNav();
+  setBodyView('tips');
+  content.innerHTML = viewHeader('Tips', 'Fast shift-tip tracking is next; profile visibility is wired now.') + `<section class="hub-card tips-placeholder">
+    <div class="card-heading"><span>💵</span><div><strong>Tips tracker module</strong><small>Wife profile only for now</small></div></div>
+    <p>This module is ready for the next build slice: add shift, weekly/monthly summaries, and CSV export.</p>
+    <a class="ghost-link" href="/home">Back to hub</a>
+  </section>`;
+}
+
 async function renderProjects() {
   setActiveNav();
   const { projects } = await api('/api/projects');
@@ -580,6 +603,50 @@ async function addGroceryFromInput() {
   await api('/api/quick-add', { method: 'POST', body: JSON.stringify({ text: text.match(/^(walmart|grocery)\s+/i) ? text : `grocery ${text}`, source: 'app' }) });
   input.value = '';
   renderGrocery();
+}
+
+function profileOptionHtml(profile) {
+  return `<option value="${escapeAttribute(profile.id)}" ${activeProfile?.id === profile.id ? 'selected' : ''}>${escapeHtml(profile.name)}</option>`;
+}
+
+async function loadProfileChrome() {
+  const [{ profiles }, moduleState] = await Promise.all([
+    api('/api/profiles'),
+    api('/api/modules'),
+  ]);
+  activeProfile = moduleState.profile;
+  activeModules = moduleState.modules;
+  renderModuleNav(activeModules);
+  document.querySelectorAll('#profile-select, #top-profile-select').forEach(select => {
+    select.innerHTML = profiles.map(profileOptionHtml).join('');
+    select.value = activeProfile.id;
+    select.onchange = async event => {
+      await api('/api/profile/select', { method: 'POST', body: JSON.stringify({ profileId: event.target.value }) });
+      render();
+    };
+  });
+  const pill = document.querySelector('.profile-pill');
+  if (pill) pill.textContent = activeProfile.name;
+}
+
+function moduleLinks(module) {
+  if (module.id === 'tasks') {
+    return [
+      { href: '/today', label: 'Today', icon: module.icon },
+      { href: '/inbox', label: 'Inbox', icon: '↧' },
+      { href: '/future', label: 'Future', icon: '▣' },
+      { href: '/projects', label: 'Projects', icon: '▦' },
+      { href: '/done', label: 'Done', icon: '✓' },
+    ];
+  }
+  return [{ href: module.href, label: module.navLabel || module.label, icon: module.icon }];
+}
+
+function renderModuleNav(modules) {
+  const nav = document.querySelector('[data-module-nav]');
+  if (!nav || !modules?.length) return;
+  nav.innerHTML = modules.flatMap(moduleLinks).map(module => `<a href="${escapeAttribute(module.href)}" data-nav="${escapeAttribute(module.href)}"><span>${escapeHtml(module.icon || '•')}</span> ${escapeHtml(module.label)}</a>`).join('');
+  setActiveNav();
 }
 
 async function refreshProjectOptions() {

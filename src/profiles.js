@@ -1,0 +1,104 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { modules } from './modules/registry.js';
+import { readStore } from './db.js';
+import { DEFAULT_PROFILES, normalizeProfiles } from './profileDefaults.js';
+
+const PROFILE_COOKIE = 'todo_profile';
+const PROFILE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+
+export { DEFAULT_PROFILES, normalizeProfiles } from './profileDefaults.js';
+
+function secret() {
+  return process.env.AUTH_SECRET || process.env.HOUSEHOLD_PIN || process.env.HOUSEHOLD_PASSWORD || 'local-dev-secret';
+}
+
+function sign(value) {
+  return createHmac('sha256', secret()).update(value).digest('base64url');
+}
+
+function safeEqual(a, b) {
+  const left = Buffer.from(String(a));
+  const right = Buffer.from(String(b));
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
+
+function decodeCookieValue(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return '';
+  }
+}
+
+function parseCookies(req) {
+  return Object.fromEntries(String(req.headers.cookie || '').split(';').map(part => part.trim()).filter(Boolean).map(part => {
+    const index = part.indexOf('=');
+    return index === -1 ? [part, ''] : [part.slice(0, index), decodeCookieValue(part.slice(index + 1))];
+  }));
+}
+
+export async function listProfiles() {
+  const store = await readStore();
+  return normalizeProfiles(store.profiles);
+}
+
+export async function findProfile(profileId) {
+  const id = String(profileId || '').trim().toLowerCase();
+  const profiles = await listProfiles();
+  return profiles.find(profile => profile.id === id) || null;
+}
+
+function profileCookie(profileId) {
+  const payload = String(profileId).trim().toLowerCase();
+  return `${payload}.${sign(payload)}`;
+}
+
+export function selectedProfileId(req) {
+  const value = parseCookies(req)[PROFILE_COOKIE];
+  if (!value) return 'family';
+  const parts = String(value).split('.');
+  if (parts.length !== 2) return 'family';
+  const [profileId, signature] = parts;
+  if (!profileId || !safeEqual(signature, sign(profileId))) return 'family';
+  return profileId;
+}
+
+export async function activeProfile(req) {
+  return (await findProfile(selectedProfileId(req))) || (await findProfile('family'));
+}
+
+export async function modulesForProfile(profileId) {
+  const profile = (await findProfile(profileId)) || (await findProfile('family'));
+  const enabled = new Set(profile.enabledModules || []);
+  return modules.filter(module => enabled.has(module.id) && (!module.profiles || module.profiles.includes(profile.id)));
+}
+
+export async function activeModules(req) {
+  const profile = await activeProfile(req);
+  return { profile, modules: await modulesForProfile(profile.id) };
+}
+
+export function registerProfileRoutes(app) {
+  app.get('/api/profiles', async (_req, res, next) => {
+    try { res.json({ profiles: await listProfiles() }); } catch (err) { next(err); }
+  });
+
+  app.get('/api/profile', async (req, res, next) => {
+    try { res.json({ profile: await activeProfile(req) }); } catch (err) { next(err); }
+  });
+
+  app.post('/api/profile/select', async (req, res, next) => {
+    try {
+      const profile = await findProfile(req.body?.profileId);
+      if (!profile) return res.status(400).json({ error: 'Unknown profile' });
+      const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+      res.setHeader('Set-Cookie', `${PROFILE_COOKIE}=${encodeURIComponent(profileCookie(profile.id))}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${PROFILE_MAX_AGE_SECONDS}${secure}`);
+      res.json({ ok: true, profile });
+    } catch (err) { next(err); }
+  });
+
+  app.get('/api/modules', async (req, res, next) => {
+    try { res.json(await activeModules(req)); } catch (err) { next(err); }
+  });
+}

@@ -6,16 +6,31 @@ const fallbackDbPath = process.env.VERCEL ? '/tmp/todo.json' : './data/todo.json
 export const dbPath = resolve(process.env.TODO_DB || fallbackDbPath);
 const kvKey = process.env.TODO_KV_KEY || 'todo:store';
 
+import { normalizeProfiles } from './profileDefaults.js';
+
 function emptyStore() {
-  return { tasks: [], groceryItems: [] };
+  return {
+    profiles: normalizeProfiles(),
+    modules: [],
+    tasks: [],
+    groceryItems: [],
+    tipEntries: [],
+    chatThreads: [],
+    chatMessages: [],
+  };
 }
 
 function normalizeStore(store) {
   return {
     ...emptyStore(),
     ...(store && typeof store === 'object' ? store : {}),
+    profiles: normalizeProfiles(store?.profiles),
+    modules: Array.isArray(store?.modules) ? store.modules : [],
     tasks: Array.isArray(store?.tasks) ? store.tasks : [],
     groceryItems: Array.isArray(store?.groceryItems) ? store.groceryItems : [],
+    tipEntries: Array.isArray(store?.tipEntries) ? store.tipEntries : [],
+    chatThreads: Array.isArray(store?.chatThreads) ? store.chatThreads : [],
+    chatMessages: Array.isArray(store?.chatMessages) ? store.chatMessages : [],
   };
 }
 

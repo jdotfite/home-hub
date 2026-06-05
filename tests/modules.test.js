@@ -10,7 +10,7 @@ import { registerGroceryRoutes } from '../src/modules/grocery/api.js';
 
 test('static household modules registry describes existing first-party modules', () => {
   const ids = modules.map(module => module.id);
-  assert.deepEqual(ids, ['home', 'tasks', 'calendar', 'grocery', 'documents']);
+  assert.deepEqual(ids, ['home', 'tasks', 'calendar', 'grocery', 'documents', 'tips']);
 
   const calendar = findModuleById('calendar');
   assert.equal(calendar.label, 'Calendar');
@@ -31,6 +31,11 @@ test('static household modules registry describes existing first-party modules',
   const grocery = findModuleById('grocery');
   assert.equal(grocery.apiBase, '/api/grocery');
   assert.deepEqual(grocery.routes, ['/grocery']);
+
+  const tips = findModuleById('tips');
+  assert.equal(tips.href, '/tips');
+  assert.deepEqual(tips.profiles, ['wife']);
+  assert.ok(appPageRoutes.includes('/tips'));
 });
 
 test('calendar module owns calendar data and route registration', async () => {
