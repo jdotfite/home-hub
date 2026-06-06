@@ -2153,7 +2153,7 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 }
 
 
-.calendar-source-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.calendar-source-row { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 0; }
 .calendar-source-row > a { color: var(--accent); font-size: 12px; text-decoration: none; }
 .calendar-source-chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); background: rgba(255,255,255,.035); color: var(--text); border-radius: 999px; padding: 8px 11px; font-size: 12px; cursor: pointer; }
 .calendar-source-chip input { accent-color: var(--accent); }
