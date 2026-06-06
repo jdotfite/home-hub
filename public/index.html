@@ -8,7 +8,7 @@
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/icon.svg" />
   <meta name="theme-color" content="#111111" />
-  <link rel="stylesheet" href="/styles.css?v=hub-pwa-15" />
+  <link rel="stylesheet" href="/styles.css?v=hub-pwa-16" />
 </head>
 <body>
   <div class="app-shell">
@@ -59,7 +59,7 @@
       <main>
         <section class="composer quick-add" aria-label="Quick capture">
           <input id="new-title" placeholder="Capture task, grocery, note…" autofocus />
-          <input id="new-project" placeholder="project (optional)" list="project-options" />
+          <input id="new-project" placeholder="Project" list="project-options" />
           <input id="new-due" type="date" aria-label="Due date" />
           <select id="new-recurrence" aria-label="Repeat">
             <option value="none">No repeat</option>
@@ -78,7 +78,7 @@
 
   <button class="fab-add" type="button" aria-label="Capture item">+</button>
 
-  <script src="/app.js?v=hub-pwa-15" type="module"></script>
+  <script src="/app.js?v=hub-pwa-16" type="module"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js'));

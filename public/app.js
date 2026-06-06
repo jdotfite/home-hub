@@ -422,12 +422,26 @@ async function renderHome() {
     <section class="hub-grid">
       ${hubPanel('Today', '/today', 'View tasks', todayTasks.length ? todayTasks.map(t => `<li><span>☐</span><strong>${escapeHtml(t.title)}</strong></li>`).join('') : '<li class="hub-empty-row">Nothing due today.</li>')}
       ${hubPanel('Family Calendar', '/calendar', 'View calendar', upcoming.length ? upcoming.map(calendarEventRow).join('') : '<li class="hub-empty-row">No upcoming events.</li>')}
-      ${hubPanel('Grocery', '/grocery', 'Open list', activeGrocery.length ? activeGrocery.slice(0, 5).map(i => `<li><span>•</span>${escapeHtml(i.quantity ? i.quantity + ' ' : '')}${escapeHtml(i.title)}</li>`).join('') : '<li class="hub-empty-row">Grocery list is clear.</li>')}
+      ${hubPanel('Grocery', '/grocery', 'Open list', activeGrocery.length
+        ? activeGrocery.slice(0, 5).map(i => `<li><span>•</span>${escapeHtml(i.quantity ? i.quantity + ' ' : '')}${escapeHtml(i.title)}</li>`).join('')
+        : `<li class="hub-empty-row">Grocery list is clear.</li><li style="background:transparent;min-height:auto;padding:4px 0;display:block"><div class="hub-grocery-add"><input id="hub-grocery-quick" placeholder="Add item…"><button id="hub-grocery-quick-add">Add</button></div></li>`)}
       ${hubPanel('Documents', '/documents', 'View docs', featuredDocs.map(doc => `<li><span>${escapeHtml(doc.icon)}</span><strong>${escapeHtml(doc.title)}</strong><small>${escapeHtml(doc.category)}</small></li>`).join(''))}
       ${hubPanel('Family Chat', '/chat', 'Open chat', recentChat.length ? recentChat.map(m => `<li><span class="chat-avatar hub-chat-avatar" style="background:${escapeAttribute(PROFILE_COLORS[m.profileId] || '#ffd60a')}">${escapeHtml((m.profileId || 'f')[0].toUpperCase())}</span><span class="hub-chat-msg"><strong>${escapeHtml(m.threadTitle || 'Chat')}</strong> <span>${escapeHtml(m.body.length > 60 ? m.body.slice(0, 60) + '…' : m.body)}</span></span></li>`).join('') : '<li class="hub-empty-row">No family messages yet.</li>')}
     </section>`;
   $('#add').onclick = quickCapture;
   $('#new-title').placeholder = 'Add anything: “milk”, “trash Monday”, “dentist Thursday 3pm”…';
+  const hgBtn = $('#hub-grocery-quick-add');
+  if (hgBtn) {
+    const hgInput = $('#hub-grocery-quick');
+    const doAdd = async () => {
+      const t = hgInput?.value.trim();
+      if (!t) return;
+      await api('/api/grocery', { method: 'POST', body: JSON.stringify({ title: t }) });
+      renderHome();
+    };
+    hgBtn.onclick = doAdd;
+    hgInput?.addEventListener('keydown', e => { if (e.key === 'Enter') doAdd(); });
+  }
 }
 
 function hubPanel(title, href, linkLabel, body) {

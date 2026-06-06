@@ -52,7 +52,7 @@ main { max-width: 1180px; margin: 24px auto 56px; padding: 0 24px; }
 .filters { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .filter { color: var(--muted); padding: 8px 11px; font-size: 13px; }
 .filter.active { background: #171821; color: white; border-color: #171821; }
-.composer { display: grid; grid-template-columns: minmax(220px, 1fr) 140px 145px 130px auto; gap: 10px; margin-bottom: 18px; padding: 10px; background: rgba(255,255,255,.86); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); }
+.composer { display: grid; grid-template-columns: minmax(220px, 1fr) 150px 145px 130px auto; gap: 10px; margin-bottom: 18px; padding: 10px; background: rgba(255,255,255,.86); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); }
 input, textarea, select { border: 1px solid var(--border); border-radius: 12px; padding: 12px 13px; background: white; color: var(--text); }
 input:focus, select:focus, button:focus-visible, [contenteditable]:focus { outline: 3px solid rgba(47,128,237,.22); outline-offset: 2px; }
 button { cursor: pointer; transition: transform .12s ease, background .12s ease, box-shadow .12s ease; }
@@ -1868,15 +1868,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .hub-next-more { margin: 0; font-size: 12px; color: #888; padding-top: 4px; border-top: 1px solid rgba(255,255,255,.06); }
 .hub-next-empty { margin: 0; color: #777; font-size: 14px; }
 .hub-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.hub-panel { min-height: 230px; display: grid; align-content: start; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 18px; background: #202020; box-shadow: var(--small-shadow); }
+.hub-panel { display: grid; align-content: start; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: 18px; background: #202020; box-shadow: var(--small-shadow); }
 .hub-panel header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .hub-panel h3 { margin: 0; font-size: 18px; letter-spacing: -.35px; }
 .hub-panel header a { color: #ffd60a; font-size: 13px; }
 .hub-panel ul { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
-.hub-panel li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 40px; padding: 8px 9px; border-radius: 10px; background: #282828; color: #ededed; }
+.hub-panel li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 36px; padding: 7px 9px; border-radius: 10px; background: #282828; color: #ededed; }
 .hub-panel li small { color: #8d8d8d; font-size: 12px; }
 .muted-row { color: #9c9c9c !important; }
 .hub-empty-row { color: #777 !important; font-style: italic; background: transparent !important; pointer-events: none; min-height: 32px !important; }
+.hub-grocery-add { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin-top: 2px; }
+.hub-grocery-add input { border: 1px solid rgba(255,255,255,.1); border-radius: 8px; background: #2a2a2a; color: #f0f0f0; padding: 6px 10px; font-size: 13px; }
+.hub-grocery-add button { border: 0; border-radius: 8px; background: #ffd60a; color: #111; padding: 6px 12px; font-size: 13px; font-weight: 760; cursor: pointer; }
 .hub-cal-row { display: grid !important; grid-template-columns: 110px minmax(0,1fr) auto !important; }
 .hub-cal-row .hub-event-date { color: #ffd60a; font-size: 12px; font-weight: 760; }
 .hub-panel-link { color: #7a7a7a !important; transition: color .15s; }
@@ -1907,6 +1910,7 @@ body[data-view="home"] .quick-add #new-project,
 body[data-view="home"] .quick-add #new-due,
 body[data-view="home"] .quick-add #new-recurrence { display: none; }
 body[data-view="home"] .quick-add { grid-template-columns: 1fr auto; }
+:focus-visible { outline: 2px solid #ffd60a; outline-offset: 2px; }
 body[data-view="calendar"] .fab-add::after,
 body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 @media (max-width: 860px) {
