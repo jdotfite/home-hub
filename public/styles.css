@@ -2101,12 +2101,14 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .chat-new-thread-form button[type="submit"] { background: #ffd60a; color: #111; border: 0; font-weight: 800; }
 .chat-thread-item { display: flex; align-items: center; border-bottom: 1px solid #2a2a2a; transition: background .1s; }
 .chat-thread-item:hover, .chat-thread-item.active { background: #2a2a2a; }
+.chat-thread-item.unread .chat-thread-title { color: #fff4bf; font-weight: 800; }
 .chat-thread-btn { flex: 1; display: flex; align-items: center; gap: 6px; padding: 12px 14px; background: none; border: 0; color: var(--text); font-size: 14px; text-align: left; cursor: pointer; min-width: 0; }
 .chat-thread-btn small.chat-thread-count { color: var(--muted); font-size: 11px; margin-left: auto; white-space: nowrap; flex-shrink: 0; }
 .chat-thread-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .chat-thread-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-thread-preview { color: var(--muted); font-size: 11px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-thread-preview-empty { opacity: .75; }
+.chat-unread-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: #ffd60a; color: #111; font-size: 10px; font-weight: 900; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(255, 214, 10, .15); }
 .chat-pin-badge { font-size: 12px; flex-shrink: 0; }
 .chat-thread-actions { display: flex; gap: 2px; padding: 0 8px; opacity: 0; transition: opacity .1s; }
 .chat-thread-item:hover .chat-thread-actions { opacity: 1; }

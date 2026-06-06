@@ -36,6 +36,7 @@ test('db uses Vercel KV REST when KV environment is configured', async () => {
     assert.deepEqual(savedStore.groceryItems, []);
     assert.ok(Array.isArray(savedStore.profiles));
     assert.ok(Array.isArray(savedStore.tipEntries));
+    assert.ok(Array.isArray(savedStore.chatReads));
   } finally {
     globalThis.fetch = previousFetch;
     if (previousUrl === undefined) delete process.env.KV_REST_API_URL; else process.env.KV_REST_API_URL = previousUrl;
@@ -64,6 +65,7 @@ test('db falls back to writable tmp storage on Vercel without KV', async () => {
     assert.deepEqual(store.groceryItems, []);
     assert.ok(Array.isArray(store.profiles));
     assert.ok(Array.isArray(store.tipEntries));
+    assert.ok(Array.isArray(store.chatReads));
   } finally {
     if (previousVercel === undefined) delete process.env.VERCEL; else process.env.VERCEL = previousVercel;
     if (previousTodoDb === undefined) delete process.env.TODO_DB; else process.env.TODO_DB = previousTodoDb;

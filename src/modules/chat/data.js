@@ -26,6 +26,32 @@ function normalizeMessage(row) {
   };
 }
 
+function normalizeProfileId(profileId) {
+  return VALID_PROFILE_IDS.has(profileId) ? profileId : 'family';
+}
+
+function readKey(threadId, profileId) {
+  return `${threadId}:${normalizeProfileId(profileId)}`;
+}
+
+function normalizeRead(row) {
+  if (!row || !row.threadId) return null;
+  return {
+    threadId: row.threadId,
+    profileId: normalizeProfileId(row.profileId),
+    lastReadAt: row.lastReadAt,
+  };
+}
+
+function validateReadBoundary(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') throw apiError('Invalid read timestamp', 400);
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString() !== value) throw apiError('Invalid read timestamp', 400);
+  if (value > nowIso()) throw apiError('Read timestamp cannot be in the future', 400);
+  return value;
+}
+
 function apiError(message, status) {
   const err = new Error(message);
   err.status = status;
@@ -34,10 +60,17 @@ function apiError(message, status) {
 
 // --- Threads ---
 
-export async function listThreads() {
+export async function listThreads(options = {}) {
+  const profileId = normalizeProfileId(options.profileId);
   const store = await readStore();
   const threads = (store.chatThreads || []).map(normalizeThread).filter(Boolean);
   const messages = store.chatMessages || [];
+  const reads = new Map(
+    (store.chatReads || [])
+      .map(normalizeRead)
+      .filter(Boolean)
+      .map(r => [readKey(r.threadId, r.profileId), r.lastReadAt])
+  );
 
   return threads
     .map(t => {
@@ -47,6 +80,10 @@ export async function listThreads() {
         .filter(Boolean)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       const lastMessage = threadMessages[0] || null;
+      const lastReadAt = reads.get(readKey(t.id, profileId)) || null;
+      const unreadCount = threadMessages.filter(m =>
+        m.profileId !== profileId && (!lastReadAt || m.createdAt > lastReadAt)
+      ).length;
       return {
         ...t,
         messageCount: threadMessages.length,
@@ -56,6 +93,9 @@ export async function listThreads() {
           profileId: lastMessage.profileId,
           createdAt: lastMessage.createdAt,
         } : null,
+        unreadCount,
+        hasUnread: unreadCount > 0,
+        lastReadAt,
       };
     })
     .sort((a, b) => {
@@ -112,6 +152,7 @@ export async function deleteThread(id) {
   store.chatThreads = (store.chatThreads || []).filter(t => t.id !== id);
   if (store.chatThreads.length === before) throw apiError('Thread not found', 404);
   store.chatMessages = (store.chatMessages || []).filter(m => m.threadId !== id);
+  store.chatReads = (store.chatReads || []).filter(r => r.threadId !== id);
   await writeStore(store);
   return { removed: 1 };
 }
@@ -170,6 +211,28 @@ export async function deleteMessage(threadId, messageId) {
   if (store.chatMessages.length === before) throw apiError('Message not found', 404);
   await writeStore(store);
   return { removed: 1 };
+}
+
+export async function markThreadRead(threadId, profileId = 'family', options = {}) {
+  const store = await readStore();
+  const thread = (store.chatThreads || []).find(t => t.id === threadId);
+  if (!thread) throw apiError('Thread not found', 404);
+
+  const normalizedProfileId = normalizeProfileId(profileId);
+  const key = readKey(threadId, normalizedProfileId);
+  const existing = (store.chatReads || []).findIndex(r => readKey(r.threadId, r.profileId) === key);
+  const existingRead = existing === -1 ? null : normalizeRead(store.chatReads[existing]);
+  const requestedBoundary = validateReadBoundary(options.lastReadAt);
+  const requestedLastReadAt = requestedBoundary || nowIso();
+  const timestamp = existingRead?.lastReadAt && existingRead.lastReadAt > requestedLastReadAt
+    ? existingRead.lastReadAt
+    : requestedLastReadAt;
+  const nextRead = { threadId, profileId: normalizedProfileId, lastReadAt: timestamp };
+  store.chatReads = store.chatReads || [];
+  if (existing === -1) store.chatReads.push(nextRead);
+  else store.chatReads[existing] = nextRead;
+  await writeStore(store);
+  return nextRead;
 }
 
 export async function getRecentMessages(limit = 5) {

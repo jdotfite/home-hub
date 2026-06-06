@@ -718,10 +718,19 @@ async function openChatThread(threadId, threadTitle) {
   const pane = $('#chat-message-pane');
   if (!pane) return;
   pane.innerHTML = '<div class="chat-loading">Loading…</div>';
+  const { messages } = await api(`/api/chat/threads/${encodeURIComponent(threadId)}/messages`);
+  const latestDisplayedAt = messages[messages.length - 1]?.createdAt;
+  if (latestDisplayedAt) {
+    await api(`/api/chat/threads/${encodeURIComponent(threadId)}/read`, {
+      method: 'POST',
+      body: JSON.stringify({ lastReadAt: latestDisplayedAt }),
+    }).catch(() => null);
+  }
+  $$('.chat-thread-item').forEach(item => item.classList.toggle('active', item.dataset.id === threadId));
+  const activeItem = $(`.chat-thread-item[data-id="${CSS.escape(threadId)}"]`);
+  activeItem?.classList.remove('unread');
+  activeItem?.querySelector('.chat-unread-badge')?.remove();
 
-  content.querySelectorAll('.chat-thread-item').forEach(el => el.classList.toggle('active', el.dataset.id === threadId));
-
-  const { messages } = await api(`/api/chat/threads/${threadId}/messages`);
   const layout = pane.closest('.chat-layout');
   if (layout) layout.dataset.mobileView = 'messages';
 
@@ -773,8 +782,9 @@ function chatThreadItemHtml(thread) {
   const preview = thread.lastMessage?.body
     ? `<small class="chat-thread-preview">${escapeHtml(thread.lastMessage.body.length > 48 ? thread.lastMessage.body.slice(0, 48) + '…' : thread.lastMessage.body)}</small>`
     : '<small class="chat-thread-preview chat-thread-preview-empty">No messages yet</small>';
-  return `<div class="chat-thread-item" data-id="${escapeAttribute(thread.id)}" data-title="${escapeAttribute(thread.title)}">
-    <button type="button" class="chat-thread-btn">${badge}<span class="chat-thread-copy"><span class="chat-thread-title">${escapeHtml(thread.title)}</span>${preview}</span><small class="chat-thread-count">${escapeHtml(count)}</small></button>
+  const unread = thread.unreadCount > 0 ? `<span class="chat-unread-badge" aria-label="${escapeAttribute(thread.unreadCount + ' unread message' + (thread.unreadCount === 1 ? '' : 's'))}">${escapeHtml(thread.unreadCount > 9 ? '9+' : String(thread.unreadCount))}</span>` : '';
+  return `<div class="chat-thread-item${thread.unreadCount > 0 ? ' unread' : ''}" data-id="${escapeAttribute(thread.id)}" data-title="${escapeAttribute(thread.title)}">
+    <button type="button" class="chat-thread-btn">${badge}<span class="chat-thread-copy"><span class="chat-thread-title">${escapeHtml(thread.title)}</span>${preview}</span>${unread}<small class="chat-thread-count">${escapeHtml(count)}</small></button>
     <div class="chat-thread-actions">
       <button type="button" class="chat-pin-btn" data-pinned="${thread.pinned}" title="${thread.pinned ? 'Unpin' : 'Pin'}">${thread.pinned ? '📌' : '·'}</button>
       <button type="button" class="chat-del-thread-btn" title="Delete thread">✕</button>

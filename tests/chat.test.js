@@ -11,6 +11,7 @@ import {
   postMessage,
   deleteMessage,
   getRecentMessages,
+  markThreadRead,
 } from '../src/modules/chat/data.js';
 
 async function withServer(fn) {
@@ -86,6 +87,43 @@ test('thread list includes latest message preview metadata', async () => {
   assert.equal(listed.lastMessage.body, 'Latest dinner plan for tonight');
   assert.equal(listed.lastMessage.profileId, 'wife');
   assert.ok(listed.lastMessage.createdAt);
+});
+
+test('thread list exposes profile-aware unread counts and markThreadRead clears them', async () => {
+  await resetForTests();
+  const thread = await createThread({ title: 'Updates' });
+
+  await postMessage(thread.id, { profileId: 'justin', body: 'My own note' });
+  await postMessage(thread.id, { profileId: 'wife', body: 'Please read this' });
+
+  let [listed] = await listThreads({ profileId: 'justin' });
+  assert.equal(listed.unreadCount, 1);
+  assert.equal(listed.hasUnread, true);
+
+  await markThreadRead(thread.id, 'justin');
+  [listed] = await listThreads({ profileId: 'justin' });
+  assert.equal(listed.unreadCount, 0);
+  assert.equal(listed.hasUnread, false);
+  assert.ok(listed.lastReadAt);
+
+  await postMessage(thread.id, { profileId: 'wife', body: 'One more thing' });
+  [listed] = await listThreads({ profileId: 'justin' });
+  assert.equal(listed.unreadCount, 1);
+
+  const displayedBoundary = listed.lastReadAt;
+  await postMessage(thread.id, { profileId: 'wife', body: 'Message after displayed snapshot' });
+  await markThreadRead(thread.id, 'justin', { lastReadAt: displayedBoundary });
+  [listed] = await listThreads({ profileId: 'justin' });
+  assert.equal(listed.unreadCount, 2);
+
+  await assert.rejects(
+    () => markThreadRead(thread.id, 'justin', { lastReadAt: 'not-a-date' }),
+    { status: 400 }
+  );
+  await assert.rejects(
+    () => markThreadRead(thread.id, 'justin', { lastReadAt: '9999-01-01T00:00:00.000Z' }),
+    { status: 400 }
+  );
 });
 
 test('deleteThread also removes its messages', async () => {
@@ -251,6 +289,41 @@ test('POST message returns 400 for missing body', async () => {
       body: JSON.stringify({ body: '' }),
     });
     assert.equal(res.status, 400);
+  });
+});
+
+test('POST /api/chat/threads/:id/read clears unread for active profile', async () => {
+  await withServer(async base => {
+    let res = await fetch(`${base}/api/chat/threads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Read state' }),
+    });
+    const { thread } = await res.json();
+
+    await fetch(`${base}/api/chat/threads/${thread.id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: 'Family message' }),
+    });
+
+    res = await fetch(`${base}/api/profile/select`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profileId: 'justin' }),
+    });
+    const cookie = res.headers.get('set-cookie');
+
+    res = await fetch(`${base}/api/chat/threads`, { headers: { cookie } });
+    let [{ unreadCount }] = (await res.json()).threads;
+    assert.equal(unreadCount, 1);
+
+    res = await fetch(`${base}/api/chat/threads/${thread.id}/read`, { method: 'POST', headers: { cookie } });
+    assert.equal(res.status, 200);
+
+    res = await fetch(`${base}/api/chat/threads`, { headers: { cookie } });
+    [{ unreadCount }] = (await res.json()).threads;
+    assert.equal(unreadCount, 0);
   });
 });
 

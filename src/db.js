@@ -17,6 +17,7 @@ function emptyStore() {
     tipEntries: [],
     chatThreads: [],
     chatMessages: [],
+    chatReads: [],
   };
 }
 
@@ -31,6 +32,7 @@ function normalizeStore(store) {
     tipEntries: Array.isArray(store?.tipEntries) ? store.tipEntries : [],
     chatThreads: Array.isArray(store?.chatThreads) ? store.chatThreads : [],
     chatMessages: Array.isArray(store?.chatMessages) ? store.chatMessages : [],
+    chatReads: Array.isArray(store?.chatReads) ? store.chatReads : [],
   };
 }
 
