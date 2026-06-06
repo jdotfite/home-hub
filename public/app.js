@@ -827,7 +827,7 @@ async function openChatThread(threadId, threadTitle) {
       body: JSON.stringify({ lastReadAt: latestDisplayedAt }),
     }).catch(() => null);
   }
-  $$('.chat-thread-item').forEach(item => item.classList.toggle('active', item.dataset.id === threadId));
+  document.querySelectorAll('.chat-thread-item').forEach(item => item.classList.toggle('active', item.dataset.id === threadId));
   const activeItem = $(`.chat-thread-item[data-id="${CSS.escape(threadId)}"]`);
   activeItem?.classList.remove('unread');
   activeItem?.querySelector('.chat-unread-badge')?.remove();
