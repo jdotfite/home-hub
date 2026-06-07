@@ -1127,56 +1127,51 @@ function buildPayBreakdownChart(entries) {
 
 function bindWorkControls(entries, settings) {
   content.querySelectorAll('.work-delete-btn').forEach(btn => {
-    btn.onclick = async e => {
-      const card = e.currentTarget.closest('.work-entry');
-      const id = card.dataset.id;
-      if (!confirm('Delete this work entry?')) return;
+    btn.onclick = async () => {
+      const id = btn.dataset.id || btn.closest('[data-id]')?.dataset.id;
+      if (!id || !confirm('Delete this work entry?')) return;
       await api(`/api/work/${id}`, { method: 'DELETE' });
       renderWork();
     };
   });
   content.querySelectorAll('.work-edit-btn').forEach(btn => {
-    btn.onclick = e => {
-      const card = e.currentTarget.closest('.work-entry');
-      const id = card.dataset.id;
+    btn.onclick = () => {
+      const id = btn.dataset.id || btn.closest('[data-id]')?.dataset.id;
       const entry = entries.find(en => en.id === id);
       if (!entry) return;
-      const formHtml = workEditFormHtml(entry, settings);
-      card.innerHTML = formHtml;
-      bindWorkEditForm(card, entry, settings);
+      openWorkEditModal(entry, settings);
     };
   });
 }
 
-function workEditFormHtml(entry, settings) {
-  const rateVal = String(Math.round(Number(entry.commissionRate || 0) * 1000) / 10);
-  const serviceNames = settings.serviceNames || ['IPL', 'Peel', 'Facial', 'Wax', 'Lash', 'Product', 'Other'];
-  return `<datalist id="work-edit-service-names">${serviceNames.map(n => `<option value="${escapeAttribute(n)}">`).join('')}</datalist>
-  <form class="work-edit-form tips-form">
-    <div class="work-form-grid work-edit-grid">
-      <label>Date<input type="date" name="date" value="${escapeAttribute(entry.date)}" required></label>
-      <label>Client<input type="text" name="clientName" value="${escapeAttribute(entry.clientName || '')}" autocomplete="off"></label>
-      <label>Service<input type="text" name="serviceName" list="work-edit-service-names" value="${escapeAttribute(entry.serviceName || '')}" autocomplete="off"></label>
-      <label>Revenue&nbsp;$<input type="number" name="revenue" value="${escapeAttribute(String(entry.revenue || 0))}" step="0.01" min="0" required></label>
-      <label>Tip&nbsp;$<input type="number" name="tipAmount" value="${escapeAttribute(String(entry.tipAmount || 0))}" step="0.01" min="0"></label>
-      <label>Tip type<select name="tipType"><option value=""></option>${(settings.tipTypes || ['Cash', 'Tippy', 'Venmo', 'Other']).map(t => `<option value="${escapeAttribute(t)}"${entry.tipType === t ? ' selected' : ''}>${escapeHtml(t)}</option>`).join('')}</select></label>
-      <label>Rate&nbsp;%<input type="number" name="commissionRatePercent" value="${escapeAttribute(rateVal)}" step="0.1" min="0" max="100"></label>
-      <label>Deductions&nbsp;$<input type="number" name="deductions" value="${escapeAttribute(String(entry.deductions || 0))}" step="0.01" min="0"></label>
-      <label class="tips-notes-label">Notes<input type="text" name="notes" value="${escapeAttribute(entry.notes || '')}" placeholder="Optional…"></label>
-      <div class="work-edit-actions">
-        <button type="submit" class="tips-submit-btn">Save changes</button>
-        <button type="button" class="work-edit-cancel-btn">Cancel</button>
+function ensureWorkEditModal() {
+  let modal = document.getElementById('work-edit-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'work-edit-modal';
+    modal.className = 'work-modal-overlay';
+    modal.setAttribute('hidden', '');
+    modal.innerHTML = `<div class="work-modal-box" role="dialog" aria-modal="true" aria-label="Edit work entry">
+      <div class="work-modal-header">
+        <h3>Edit entry</h3>
+        <button class="work-modal-close" aria-label="Close">✕</button>
       </div>
-    </div>
-  </form>`;
+      <div id="work-modal-inner"></div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeWorkEditModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeWorkEditModal(); });
+    modal.querySelector('.work-modal-close').onclick = closeWorkEditModal;
+  }
+  return modal;
 }
 
-function bindWorkEditForm(card, entry, settings) {
-  card.querySelector('.work-edit-cancel-btn').onclick = () => {
-    card.innerHTML = workEntryHtml(entry, settings).replace(/^<article[^>]*>|<\/article>$/g, '');
-    card.outerHTML = workEntryHtml(entry, settings);
-  };
-  card.querySelector('.work-edit-form').onsubmit = async e => {
+function openWorkEditModal(entry, settings) {
+  const modal = ensureWorkEditModal();
+  document.getElementById('work-modal-inner').innerHTML = workEditFormHtml(entry, settings);
+  modal.removeAttribute('hidden');
+  document.body.style.overflow = 'hidden';
+  modal.querySelector('.work-edit-form').onsubmit = async e => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const data = {
@@ -1190,10 +1185,47 @@ function bindWorkEditForm(card, entry, settings) {
       tipType: fd.get('tipType') || '',
       notes: fd.get('notes') || '',
     };
-    await api(`/api/work/${entry.id}`, { method: 'PATCH', body: JSON.stringify(data) });
-    renderWork();
+    const btn = e.currentTarget.querySelector('[type=submit]');
+    btn.disabled = true;
+    try {
+      await api(`/api/work/${entry.id}`, { method: 'PATCH', body: JSON.stringify(data) });
+      closeWorkEditModal();
+      renderWork();
+    } finally {
+      btn.disabled = false;
+    }
   };
+  modal.querySelector('.work-edit-cancel-btn').onclick = closeWorkEditModal;
+  modal.querySelector('[name=date]')?.focus();
 }
+
+function closeWorkEditModal() {
+  const modal = document.getElementById('work-edit-modal');
+  if (modal) modal.setAttribute('hidden', '');
+  document.body.style.overflow = '';
+}
+
+function workEditFormHtml(entry, settings) {
+  const rateVal = String(Math.round(Number(entry.commissionRate || 0) * 1000) / 10);
+  const serviceNames = settings.serviceNames || ['IPL', 'Peel', 'Facial', 'Wax', 'Lash', 'Product', 'Other'];
+  return `<datalist id="work-edit-service-names">${serviceNames.map(n => `<option value="${escapeAttribute(n)}">`).join('')}</datalist>
+  <form class="work-edit-form tips-form">
+    <div class="work-edit-grid">
+      <label>Date<input type="date" name="date" value="${escapeAttribute(entry.date)}" required></label>
+      <label>Client<input type="text" name="clientName" value="${escapeAttribute(entry.clientName || '')}" autocomplete="off"></label>
+      <label>Service<input type="text" name="serviceName" list="work-edit-service-names" value="${escapeAttribute(entry.serviceName || '')}" autocomplete="off"></label>
+      <label>Revenue&nbsp;$<input type="number" name="revenue" value="${escapeAttribute(String(entry.revenue || 0))}" step="0.01" min="0" required></label>
+      <label>Tip&nbsp;$<input type="number" name="tipAmount" value="${escapeAttribute(String(entry.tipAmount || 0))}" step="0.01" min="0"></label>
+      <label>Tip type<select name="tipType"><option value=""></option>${(settings.tipTypes || ['Cash', 'Tippy', 'Venmo', 'Other']).map(t => `<option value="${escapeAttribute(t)}"${entry.tipType === t ? ' selected' : ''}>${escapeHtml(t)}</option>`).join('')}</select></label>
+      <label>Rate&nbsp;%<input type="number" name="commissionRatePercent" value="${escapeAttribute(rateVal)}" step="0.1" min="0" max="100"></label>
+      <label>Deductions&nbsp;$<input type="number" name="deductions" value="${escapeAttribute(String(entry.deductions || 0))}" step="0.01" min="0"></label>
+      <label class="work-edit-notes">Notes<input type="text" name="notes" value="${escapeAttribute(entry.notes || '')}" placeholder="Optional…"></label>
+    </div>
+    <div class="work-modal-actions">
+      <button type="submit" class="tips-submit-btn">Save changes</button>
+      <button type="button" class="work-edit-cancel-btn tips-export-btn">Cancel</button>
+    </div>
+  </form>`;
 
 function setupWorkVoiceInput(settings) {
   const btn = $('#work-voice-btn');
@@ -1320,8 +1352,8 @@ function workEntryHtml(entry, settings) {
     </div>
     ${entry.notes ? `<div class="tips-shift-breakdown work-entry-notes">${escapeHtml(entry.notes)}</div>` : ''}
     <div class="tips-shift-actions">
-      <button type="button" class="work-edit-btn">Edit</button>
-      <button type="button" class="work-delete-btn">Delete</button>
+      <button type="button" class="work-edit-btn" data-id="${escapeAttribute(entry.id)}">Edit</button>
+      <button type="button" class="work-delete-btn" data-id="${escapeAttribute(entry.id)}">Delete</button>
     </div>
   </article>`;
 }

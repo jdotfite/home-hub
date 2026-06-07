@@ -2274,6 +2274,8 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 }
 .work-form-grid input,
 .work-form-grid select,
+.work-edit-grid input,
+.work-edit-grid select,
 .work-advanced-fields input,
 .work-advanced-fields select {
   width: 100%;
@@ -2608,10 +2610,42 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .work-entry-numbers b { color: var(--text); }
 .work-entry-notes { font-size: 12px; color: var(--muted); font-style: italic; }
 .work-import-badge { background: rgba(100,130,255,.18); color: #aab8ff; border: 1px solid rgba(100,130,255,.3); }
-/* Inline edit form */
-.work-edit-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.work-edit-actions { grid-column: 1 / -1; display: flex; gap: 8px; }
-.work-edit-cancel-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; cursor: pointer; color: var(--muted); }
+/* Edit modal */
+.work-modal-overlay {
+  position: fixed; inset: 0; z-index: 900;
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.work-modal-overlay[hidden] { display: none; }
+.work-modal-box {
+  background: #202020; border: 1px solid var(--border);
+  border-radius: 18px; padding: 22px 24px 24px;
+  width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+  animation: modalIn 0.15s ease;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+.work-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px;
+}
+.work-modal-header h3 { margin: 0; font-size: 17px; }
+.work-modal-close {
+  background: transparent; border: none; color: var(--muted);
+  font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 6px;
+  line-height: 1;
+}
+.work-modal-close:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.work-edit-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+  margin-bottom: 18px;
+}
+.work-edit-notes { grid-column: 1 / -1; }
+.work-modal-actions { display: flex; gap: 8px; align-items: center; }
+.work-edit-cancel-btn { background: transparent; border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 750; }
 /* Work settings — service chip list */
 .work-settings-services { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 0; }
 .work-settings-service-chip { display: flex; align-items: center; gap: 4px; background: rgba(255,214,10,.12); border: 1px solid rgba(255,214,10,.3); border-radius: 20px; padding: 4px 10px; font-size: 13px; font-weight: 600; color: var(--text); }
@@ -2624,7 +2658,7 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
   .work-form-submit-row { grid-column: 1 / -1; }
   .work-form-grid .tips-submit-btn { justify-self: start; }
   .work-advanced-fields { grid-column: 1 / -1; }
-  .work-edit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .work-edit-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
 }
 @media (max-width: 760px) {
   .work-dashboard-tools { align-items: stretch; }
@@ -2635,6 +2669,7 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
   .work-form-grid { grid-template-columns: 1fr; }
   .work-advanced-fields > div { grid-template-columns: 1fr; }
   .work-recent-section > header { align-items: flex-start; flex-direction: column; }
-  .work-edit-grid { grid-template-columns: 1fr; }
+  .work-edit-grid { grid-template-columns: 1fr 1fr; }
+  .work-modal-box { padding: 16px; }
   .work-form-submit-row { width: 100%; }
 }
