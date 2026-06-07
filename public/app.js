@@ -1246,8 +1246,8 @@ function workTableHtml(entries, settings) {
       <td class="wt-num wt-tip">${escapeHtml(entry.tipAmount > 0 ? workMoney(entry.tipAmount) : '—')}</td>
       <td class="wt-num wt-total"><b>${escapeHtml(workMoney(entry.totalEarnings))}</b></td>
       <td class="wt-actions">
-        <button class="work-edit-btn" data-id="${escapeAttribute(entry.id)}" aria-label="Edit entry">Edit</button>
-        <button class="work-delete-btn" data-id="${escapeAttribute(entry.id)}" aria-label="Delete entry">Delete</button>
+        <button class="work-edit-btn wt-icon-btn wt-edit" data-id="${escapeAttribute(entry.id)}" aria-label="Edit entry" title="Edit"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H3v-2L11.5 2.5z"/></svg></button>
+        <button class="work-delete-btn wt-icon-btn wt-delete" data-id="${escapeAttribute(entry.id)}" aria-label="Delete entry" title="Delete"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h10M6 5V3h4v2M6 8v4M10 8v4M4 5l1 8h6l1-8"/></svg></button>
       </td>
     </tr>`;
   }).join('');
