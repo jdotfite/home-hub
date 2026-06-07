@@ -654,6 +654,7 @@ const WORK_PERIODS = [
 ];
 let workPeriod = 'month';
 let workViewMode = 'cards';
+let workClientSearch = '';
 const workMoneyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const workCompactMoneyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -708,7 +709,10 @@ async function renderWork() {
   const pct = n => `${Math.round(Number(n || 0) * 1000) / 10}%`;
   const scopedEntries = workEntriesForPeriod(entries, workPeriod);
   const scopedSummary = summarizeWorkEntries(scopedEntries);
-  const visibleEntries = entries.slice(0, 50);
+  const filteredEntries = workClientSearch
+    ? entries.filter(e => (e.clientName || '').toLowerCase().includes(workClientSearch.toLowerCase()))
+    : entries;
+  const visibleEntries = filteredEntries.slice(0, 50);
   const periodLabel = WORK_PERIODS.find(([value]) => value === workPeriod)?.[1] || 'Month';
   const serviceNames = settings.serviceNames || ['IPL', 'Peel', 'Facial', 'Wax', 'Lash', 'Product', 'Other'];
 
@@ -752,18 +756,21 @@ async function renderWork() {
     </section>
     <section class="work-recent-section">
       <header>
-        <div><h3>Entries</h3><small>${entries.length.toLocaleString()} total${entries.length > visibleEntries.length ? ` · latest ${visibleEntries.length}` : ''}</small></div>
+        <div><h3>Entries</h3><small>${workClientSearch ? `${visibleEntries.length} match${visibleEntries.length === 1 ? '' : 'es'}` : `${entries.length.toLocaleString()} total`}</small></div>
         <div class="work-view-toggle" role="group" aria-label="View mode">
           <button type="button" class="work-view-btn ${workViewMode === 'cards' ? 'active' : ''}" data-view-mode="cards">Cards</button>
           <button type="button" class="work-view-btn ${workViewMode === 'table' ? 'active' : ''}" data-view-mode="table">Table</button>
         </div>
       </header>
+      <div class="work-search-row">
+        <input type="search" id="work-client-search" class="work-client-search" placeholder="Search by client…" value="${escapeAttribute(workClientSearch)}" autocomplete="off">
+      </div>
       <div id="work-list">
         ${visibleEntries.length
           ? workViewMode === 'table'
             ? workTableHtml(visibleEntries, settings)
             : `<div class="tips-shifts work-shifts">${visibleEntries.map(e => workEntryHtml(e, settings)).join('')}</div>`
-          : '<div class="empty-state">No work entries yet. Log your first entry above.</div>'}
+          : `<div class="empty-state">${workClientSearch ? 'No entries match that client name.' : 'No work entries yet. Log your first entry above.'}</div>`}
       </div>
     </section>`;
 
@@ -804,6 +811,26 @@ async function renderWork() {
       renderWork();
     };
   });
+
+  const searchInput = $('#work-client-search');
+  if (searchInput) {
+    searchInput.oninput = () => {
+      workClientSearch = searchInput.value.trim();
+      const filtered = workClientSearch
+        ? entries.filter(e => (e.clientName || '').toLowerCase().includes(workClientSearch.toLowerCase()))
+        : entries;
+      const visible = filtered.slice(0, 50);
+      const listEl = document.getElementById('work-list');
+      listEl.innerHTML = visible.length
+        ? workViewMode === 'table'
+          ? workTableHtml(visible, settings)
+          : `<div class="tips-shifts work-shifts">${visible.map(e => workEntryHtml(e, settings)).join('')}</div>`
+        : `<div class="empty-state">${workClientSearch ? 'No entries match that client name.' : 'No work entries yet.'}</div>`;
+      bindWorkControls(visible, settings);
+      const small = content.querySelector('.work-recent-section header small');
+      if (small) small.textContent = workClientSearch ? `${visible.length} match${visible.length === 1 ? '' : 'es'}` : `${entries.length.toLocaleString()} total`;
+    };
+  }
 
   bindWorkControls(visibleEntries, settings);
   bindWorkImportControls();
@@ -1219,8 +1246,8 @@ function workTableHtml(entries, settings) {
       <td class="wt-num wt-tip">${escapeHtml(entry.tipAmount > 0 ? workMoney(entry.tipAmount) : '—')}</td>
       <td class="wt-num wt-total"><b>${escapeHtml(workMoney(entry.totalEarnings))}</b></td>
       <td class="wt-actions">
-        <button class="work-edit-btn icon-btn" data-id="${escapeAttribute(entry.id)}" title="Edit" aria-label="Edit entry">✏️</button>
-        <button class="work-delete-btn icon-btn" data-id="${escapeAttribute(entry.id)}" title="Delete" aria-label="Delete entry">🗑️</button>
+        <button class="work-edit-btn" data-id="${escapeAttribute(entry.id)}" aria-label="Edit entry">Edit</button>
+        <button class="work-delete-btn" data-id="${escapeAttribute(entry.id)}" aria-label="Delete entry">Delete</button>
       </td>
     </tr>`;
   }).join('');
