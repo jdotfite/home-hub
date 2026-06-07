@@ -413,7 +413,7 @@ async function renderHome() {
   const upcoming = events.slice(0, 5);
   const activeGrocery = groceryItems.filter(i => !i.checked);
   const featuredDocs = documents.slice(0, 4);
-  content.innerHTML = viewHeader('Home', '', false) + `
+  content.innerHTML = `<div class="mobile-appbar" aria-hidden="true"></div>${mobileCategoryNav()}` + `
     <section class="hub-hero">
       <div class="hub-hero-date">
         <p class="eyebrow">Household Hub</p>
@@ -448,7 +448,7 @@ async function renderHome() {
 }
 
 function hubPanel(title, href, linkLabel, body) {
-  return `<article class="hub-panel"><header><h3>${escapeHtml(title)}</h3><a class="hub-panel-link" href="${href}">${escapeHtml(linkLabel)} →</a></header><ul>${body}</ul></article>`;
+  return `<article class="hub-panel"><header><h3>${escapeHtml(title)}</h3><a class="hub-panel-link" href="${href}">${escapeHtml(linkLabel)}<svg class="hub-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></header><ul>${body}</ul></article>`;
 }
 
 function heroSummaryText(tasks, groceryItems, events) {
@@ -1512,6 +1512,35 @@ async function renderProjects() {
   });
 }
 
+function ensureChatDeleteModal() {
+  let m = document.getElementById('chat-delete-modal');
+  if (m) return m;
+  m = document.createElement('div');
+  m.id = 'chat-delete-modal';
+  m.className = 'work-modal-overlay';
+  m.hidden = true;
+  m.innerHTML = `<div class="work-modal-box chat-modal-box">
+    <h3 id="chat-delete-modal-title"></h3>
+    <p id="chat-delete-modal-msg"></p>
+    <div class="chat-modal-actions">
+      <button type="button" class="chat-modal-cancel">Cancel</button>
+      <button type="button" class="chat-modal-confirm">Delete</button>
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => { if (e.target === m) m.hidden = true; });
+  m.querySelector('.chat-modal-cancel').onclick = () => { m.hidden = true; };
+  return m;
+}
+
+function showChatDeleteModal(title, msg, onConfirm) {
+  const m = ensureChatDeleteModal();
+  m.querySelector('#chat-delete-modal-title').textContent = title;
+  m.querySelector('#chat-delete-modal-msg').textContent = msg;
+  m.querySelector('.chat-modal-confirm').onclick = () => { m.hidden = true; onConfirm(); };
+  m.hidden = false;
+}
+
 async function renderChat() {
   setActiveNav();
   setBodyView('chat');
@@ -1569,12 +1598,30 @@ async function renderChat() {
       await api(`/api/chat/threads/${item.dataset.id}`, { method: 'PATCH', body: JSON.stringify({ pinned: !pinned }) });
       renderChat();
     };
-    const delBtn = item.querySelector('.chat-del-thread-btn');
-    if (delBtn) delBtn.onclick = async e => {
+    const editTitleBtn = item.querySelector('.chat-edit-thread-btn');
+    if (editTitleBtn) editTitleBtn.onclick = e => {
       e.stopPropagation();
-      if (!confirm(`Delete thread "${item.dataset.title}" and all its messages?`)) return;
-      await api(`/api/chat/threads/${item.dataset.id}`, { method: 'DELETE' });
-      renderChat();
+      const titleEl = item.querySelector('.chat-thread-title');
+      const current = item.dataset.title;
+      titleEl.innerHTML = `<input class="chat-title-input" value="${escapeAttribute(current)}" maxlength="120" />`;
+      const inp = titleEl.querySelector('.chat-title-input');
+      inp.focus();
+      inp.select();
+      const save = async () => {
+        const val = inp.value.trim();
+        if (val && val !== current) await api(`/api/chat/threads/${item.dataset.id}`, { method: 'PATCH', body: JSON.stringify({ title: val }) });
+        renderChat();
+      };
+      inp.addEventListener('keydown', ke => { if (ke.key === 'Enter') { ke.preventDefault(); save(); } if (ke.key === 'Escape') renderChat(); });
+      inp.addEventListener('blur', save);
+    };
+    const delBtn = item.querySelector('.chat-del-thread-btn');
+    if (delBtn) delBtn.onclick = e => {
+      e.stopPropagation();
+      showChatDeleteModal('Delete Thread', `Delete "${item.dataset.title}" and all its messages?`, async () => {
+        await api(`/api/chat/threads/${item.dataset.id}`, { method: 'DELETE' });
+        renderChat();
+      });
     };
   });
 }
@@ -1608,8 +1655,8 @@ async function openChatThread(threadId, threadTitle) {
       ${messages.length ? messages.map(m => chatMessageHtml(m, threadId)).join('') : '<p class="chat-empty">No messages yet. Say something!</p>'}
     </div>
     <form class="chat-compose" id="chat-compose">
-      <textarea id="chat-body" placeholder="Write a message…" rows="2" maxlength="2000"></textarea>
-      <button type="submit">Send</button>
+      <textarea id="chat-body" placeholder="Write a message…" rows="1" maxlength="2000"></textarea>
+      <button type="submit" class="chat-send-btn" aria-label="Send message"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
     </form>`;
 
   const msgEl = $('#chat-messages');
@@ -1621,22 +1668,55 @@ async function openChatThread(threadId, threadTitle) {
     content.querySelectorAll('.chat-thread-item').forEach(el => el.classList.remove('active'));
   });
 
+  const chatTextarea = $('#chat-body');
+  const chatSendBtn = document.querySelector('#chat-compose .chat-send-btn');
+  const syncSendBtn = () => chatSendBtn?.classList.toggle('visible', !!(chatTextarea?.value.trim()));
+  chatTextarea?.addEventListener('input', () => {
+    syncSendBtn();
+    chatTextarea.style.height = 'auto';
+    chatTextarea.style.height = Math.min(chatTextarea.scrollHeight, 120) + 'px';
+  });
+
   $('#chat-compose').onsubmit = async e => {
     e.preventDefault();
-    const body = $('#chat-body').value.trim();
+    const body = chatTextarea.value.trim();
     if (!body) return;
     await api(`/api/chat/threads/${threadId}/messages`, { method: 'POST', body: JSON.stringify({ body }) });
     openChatThread(threadId, threadTitle);
   };
-  $('#chat-body').addEventListener('keydown', e => {
+  chatTextarea?.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#chat-compose').requestSubmit(); }
   });
 
   pane.querySelectorAll('.chat-msg-delete').forEach(btn => {
-    btn.onclick = async () => {
-      if (!confirm('Delete this message?')) return;
-      await api(`/api/chat/threads/${threadId}/messages/${btn.dataset.id}`, { method: 'DELETE' });
-      openChatThread(threadId, threadTitle);
+    btn.onclick = () => {
+      showChatDeleteModal('Delete Message', 'Delete this message? This cannot be undone.', async () => {
+        await api(`/api/chat/threads/${threadId}/messages/${btn.dataset.id}`, { method: 'DELETE' });
+        openChatThread(threadId, threadTitle);
+      });
+    };
+  });
+
+  pane.querySelectorAll('.chat-msg-edit').forEach(btn => {
+    btn.onclick = () => {
+      const article = btn.closest('.chat-message');
+      if (article.classList.contains('editing')) return;
+      article.classList.add('editing');
+      const bodyEl = article.querySelector('.chat-msg-body');
+      const currentText = bodyEl.textContent;
+      bodyEl.innerHTML = `<textarea class="chat-edit-textarea" maxlength="2000">${escapeHtml(currentText)}</textarea><div class="chat-edit-actions"><button type="button" class="chat-edit-save">Save</button><button type="button" class="chat-edit-cancel">Cancel</button></div>`;
+      const ta = bodyEl.querySelector('.chat-edit-textarea');
+      ta.focus();
+      ta.style.height = Math.min(ta.scrollHeight + 4, 200) + 'px';
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+      bodyEl.querySelector('.chat-edit-save').onclick = async () => {
+        const newBody = ta.value.trim();
+        if (!newBody) return;
+        await api(`/api/chat/threads/${threadId}/messages/${btn.dataset.id}`, { method: 'PATCH', body: JSON.stringify({ body: newBody }) });
+        openChatThread(threadId, threadTitle);
+      };
+      bodyEl.querySelector('.chat-edit-cancel').onclick = () => openChatThread(threadId, threadTitle);
+      ta.addEventListener('keydown', ke => { if (ke.key === 'Escape') openChatThread(threadId, threadTitle); });
     };
   });
 }
@@ -1652,6 +1732,7 @@ function chatThreadItemHtml(thread) {
     <button type="button" class="chat-thread-btn">${badge}<span class="chat-thread-copy"><span class="chat-thread-title">${escapeHtml(thread.title)}</span>${preview}</span>${unread}<small class="chat-thread-count">${escapeHtml(count)}</small></button>
     <div class="chat-thread-actions">
       <button type="button" class="chat-pin-btn" data-pinned="${thread.pinned}" title="${thread.pinned ? 'Unpin' : 'Pin'}">${thread.pinned ? '📌' : '·'}</button>
+      <button type="button" class="chat-edit-thread-btn" title="Edit title">✎</button>
       <button type="button" class="chat-del-thread-btn" title="Delete thread">✕</button>
     </div>
   </div>`;
@@ -1664,7 +1745,7 @@ function chatMessageHtml(msg, threadId) {
   const name = msg.profileId.charAt(0).toUpperCase() + msg.profileId.slice(1);
   const time = new Date(msg.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   return `<article class="chat-message">
-    <div class="chat-msg-meta"><span class="chat-avatar" style="background:${color}">${escapeHtml(name[0])}</span><strong>${escapeHtml(name)}</strong><time>${escapeHtml(time)}</time><button type="button" class="chat-msg-delete" data-id="${escapeAttribute(msg.id)}" data-thread="${escapeAttribute(threadId)}" title="Delete">✕</button></div>
+    <div class="chat-msg-meta"><span class="chat-avatar" style="background:${color}">${escapeHtml(name[0])}</span><strong>${escapeHtml(name)}</strong><time>${escapeHtml(time)}</time><button type="button" class="chat-msg-edit" data-id="${escapeAttribute(msg.id)}" title="Edit">✎</button><button type="button" class="chat-msg-delete" data-id="${escapeAttribute(msg.id)}" data-thread="${escapeAttribute(threadId)}" title="Delete">✕</button></div>
     <p class="chat-msg-body">${escapeHtml(msg.body)}</p>
   </article>`;
 }
@@ -1846,8 +1927,13 @@ function moduleLinks(module) {
 
 function renderModuleNav(modules) {
   const nav = document.querySelector('[data-module-nav]');
-  if (!nav || !modules?.length) return;
-  nav.innerHTML = modules.flatMap(moduleLinks).map(module => `<a href="${escapeAttribute(module.href)}" data-nav="${escapeAttribute(module.href)}"><span>${escapeHtml(module.icon || '•')}</span> ${escapeHtml(module.label)}</a>`).join('');
+  if (nav && modules?.length) {
+    nav.innerHTML = modules.flatMap(moduleLinks).map(module => `<a href="${escapeAttribute(module.href)}" data-nav="${escapeAttribute(module.href)}"><span>${escapeHtml(module.icon || '•')}</span> ${escapeHtml(module.label)}</a>`).join('');
+  }
+  const drawerNav = document.getElementById('mobile-nav-drawer-links');
+  if (drawerNav && modules?.length) {
+    drawerNav.innerHTML = modules.flatMap(moduleLinks).map(m => `<a href="${escapeAttribute(m.href)}" data-nav="${escapeAttribute(m.href)}">${escapeHtml(m.icon || '•')} ${escapeHtml(m.label)}</a>`).join('');
+  }
   setActiveNav();
 }
 
@@ -1948,7 +2034,25 @@ document.addEventListener('keydown', e => {
   if (e.key === '4') { e.preventDefault(); navigateTo('/grocery'); }
 });
 
+function openMobileDrawer() {
+  document.getElementById('mobile-nav-drawer')?.classList.add('open');
+  document.getElementById('mobile-nav-backdrop')?.classList.add('open');
+}
+function closeMobileDrawer() {
+  document.getElementById('mobile-nav-drawer')?.classList.remove('open');
+  document.getElementById('mobile-nav-backdrop')?.classList.remove('open');
+}
+function bindMobileDrawer() {
+  document.querySelector('.mobile-greeting')?.addEventListener('click', openMobileDrawer);
+  document.getElementById('mobile-nav-close')?.addEventListener('click', closeMobileDrawer);
+  document.getElementById('mobile-nav-backdrop')?.addEventListener('click', closeMobileDrawer);
+  document.getElementById('mobile-nav-drawer-links')?.addEventListener('click', e => {
+    if (e.target.closest('a[href]')) closeMobileDrawer();
+  });
+}
+
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttribute(s) { return escapeHtml(s).replace(/`/g, '&#96;'); }
 bindAppNavigation();
+bindMobileDrawer();
 render().catch(err => content.innerHTML = `<pre>${escapeHtml(err.stack || err.message)}</pre>`);

@@ -1,4 +1,4 @@
-import { listThreads, createThread, updateThread, deleteThread, listMessages, postMessage, deleteMessage, getRecentMessages, markThreadRead } from './data.js';
+import { listThreads, createThread, updateThread, deleteThread, listMessages, postMessage, updateMessage, deleteMessage, getRecentMessages, markThreadRead } from './data.js';
 import { selectedProfileId } from '../../profiles.js';
 
 export function registerChatRoutes(app) {
@@ -38,6 +38,10 @@ export function registerChatRoutes(app) {
       const profileId = selectedProfileId(req);
       res.status(201).json({ message: await postMessage(req.params.threadId, { ...req.body, profileId }) });
     } catch (err) { next(err); }
+  });
+
+  app.patch('/api/chat/threads/:threadId/messages/:messageId', async (req, res, next) => {
+    try { res.json({ message: await updateMessage(req.params.threadId, req.params.messageId, req.body) }); } catch (err) { next(err); }
   });
 
   app.delete('/api/chat/threads/:threadId/messages/:messageId', async (req, res, next) => {

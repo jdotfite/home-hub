@@ -201,6 +201,25 @@ export async function postMessage(threadId, input = {}) {
   return message;
 }
 
+export async function updateMessage(threadId, messageId, input = {}) {
+  const store = await readStore();
+  const thread = (store.chatThreads || []).find(t => t.id === threadId);
+  if (!thread) throw apiError('Thread not found', 404);
+
+  const index = (store.chatMessages || []).findIndex(m => m.id === messageId && m.threadId === threadId);
+  if (index === -1) throw apiError('Message not found', 404);
+
+  const current = store.chatMessages[index];
+  const body = String(input.body || '').trim();
+  if (!body) throw apiError('body is required', 400);
+  if (body.length > 2000) throw apiError('body must be 2000 characters or fewer', 400);
+
+  const updated = normalizeMessage({ ...current, body, updatedAt: nowIso() });
+  store.chatMessages[index] = updated;
+  await writeStore(store);
+  return updated;
+}
+
 export async function deleteMessage(threadId, messageId) {
   const store = await readStore();
   const thread = (store.chatThreads || []).find(t => t.id === threadId);
