@@ -2673,3 +2673,91 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
   .work-modal-box { padding: 16px; }
   .work-form-submit-row { width: 100%; }
 }
+
+/* ── Mobile topbar: override the display:none set in multiple breakpoints ── */
+@media (max-width: 720px) {
+  .topbar {
+    display: flex !important;
+    min-height: 48px;
+    padding: 0 16px;
+    background: rgba(17,17,17,0.96);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(14px);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    gap: 10px;
+  }
+  .mobile-greeting {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+  .mobile-brand-logo {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    opacity: 0.85;
+  }
+  .mobile-greeting strong {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mobile-greeting span { display: none; }
+  .breadcrumb { display: none !important; }
+  .topbar-actions {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  #top-profile-select { display: none; }
+  .mobile-profile-btn {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    border-radius: 50%;
+    overflow: hidden;
+  }
+  .mobile-profile-btn .profile-avatar-dot {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 13px !important;
+  }
+  .mobile-profile-btn .profile-avatar-img {
+    width: 30px !important;
+    height: 30px !important;
+  }
+  main { padding-top: 4px; }
+}
+
+/* ── FAB: hide on non-task pages ─────────────────────────────── */
+body[data-view="tips"] .fab-add,
+body[data-view="chat"] .fab-add,
+body[data-view="settings"] .fab-add,
+body[data-view="grocery"] .fab-add,
+body[data-view="calendar"] .fab-add,
+body[data-view="documents"] .fab-add { display: none !important; }
+
+/* ── Hub panel empty rows: compact single line ──────────────── */
+.hub-empty-row {
+  display: block !important;
+  grid-column: 1 / -1;
+  min-height: 24px !important;
+  padding: 4px 6px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Work period pills: side breathing room on mobile ───────── */
+@media (max-width: 760px) {
+  .work-dashboard-tools { padding: 0; }
+  .work-period-tabs { margin: 0; }
+}

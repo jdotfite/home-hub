@@ -1826,10 +1826,9 @@ async function loadProfileChrome() {
     };
   });
   const pill = document.querySelector('.profile-pill');
-  if (pill && activeProfile) {
-    pill.innerHTML = profileAvatarHtml(activeProfile, 22) + '<span>' + escapeHtml(activeProfile.name) + '</span>';
-  }
-  if (pill) pill.textContent = activeProfile.name;
+  if (pill) pill.textContent = activeProfile?.name || '';
+  const mobileProfileBtn = document.getElementById('mobile-profile-btn');
+  if (mobileProfileBtn && activeProfile) mobileProfileBtn.innerHTML = profileAvatarHtml(activeProfile, 30);
 }
 
 function moduleLinks(module) {
