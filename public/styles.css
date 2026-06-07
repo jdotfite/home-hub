@@ -2252,7 +2252,8 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
   background: #ffd60a;
   color: #111;
 }
-.work-actions-row { margin: 0; }
+.work-actions-row { margin: 0; gap: 6px; }
+.work-gear-btn { margin-left: 4px; }
 .work-summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .work-summary-grid .tip-stat { align-items: flex-start; text-align: left; padding: 18px; }
 .work-summary-grid .tip-stat-amount { font-variant-numeric: tabular-nums; }
@@ -2434,6 +2435,19 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .work-gear-btn.tips-export-btn { display: inline-flex; align-items: center; padding: 6px 10px; }
 .work-gear-btn.tips-export-btn svg { width: 14px; height: 14px; display: block; }
 
+/* Cards grouped by month */
+.work-month-group { margin-bottom: 20px; }
+.work-month-label {
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted, #888); margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.work-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 10px;
+}
+
 /* Client search */
 .work-search-row { margin: 6px 0 10px; }
 .work-client-search {
@@ -2566,7 +2580,7 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .work-import-panel header h3 { margin: 0; font-size: 14px; }
 .work-import-panel header small { color: var(--muted); font-size: 12px; }
 /* Form submit row with voice button */
-.work-form-submit-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.work-form-submit-row { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; grid-column: 1 / -1; }
 .work-voice-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; color: var(--text); transition: background .15s; white-space: nowrap; }
 .work-voice-btn:hover { background: rgba(255,214,10,.1); border-color: var(--accent); }
 .work-voice-btn:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'todo-hub-v34';
+const CACHE_NAME = 'todo-hub-v35';
 const STATIC_ASSETS = [
   '/app.js',
   '/styles.css',

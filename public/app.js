@@ -720,7 +720,7 @@ async function renderWork() {
     <section class="work-dashboard-tools">
       ${workPeriodControlsHtml()}
       <div class="tips-export-row work-actions-row">
-        ${entries.length ? `<a class="tips-export-btn" href="/api/work/export.csv" download="work-export.csv">↓ Export CSV</a>` : ''}
+        ${entries.length ? `<a class="tips-export-btn" href="/api/work/export.csv" download="work-export.csv">↓ Export</a>` : ''}
         <button type="button" class="tips-export-btn work-import-toggle-btn" id="work-import-toggle">↑ Import</button>
         <a class="work-gear-btn tips-export-btn" href="/settings" title="Work settings" aria-label="Work settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M11.9 3.4l-.7.7M4.1 11.9l-.7.7"/></svg></a>
       </div>
@@ -769,7 +769,7 @@ async function renderWork() {
         ${visibleEntries.length
           ? workViewMode === 'table'
             ? workTableHtml(visibleEntries, settings)
-            : `<div class="tips-shifts work-shifts">${visibleEntries.map(e => workEntryHtml(e, settings)).join('')}</div>`
+            : workCardsGroupedHtml(visibleEntries, settings)
           : `<div class="empty-state">${workClientSearch ? 'No entries match that client name.' : 'No work entries yet. Log your first entry above.'}</div>`}
       </div>
     </section>`;
@@ -824,7 +824,7 @@ async function renderWork() {
       listEl.innerHTML = visible.length
         ? workViewMode === 'table'
           ? workTableHtml(visible, settings)
-          : `<div class="tips-shifts work-shifts">${visible.map(e => workEntryHtml(e, settings)).join('')}</div>`
+          : workCardsGroupedHtml(visible, settings)
         : `<div class="empty-state">${workClientSearch ? 'No entries match that client name.' : 'No work entries yet.'}</div>`;
       bindWorkControls(visible, settings);
       const small = content.querySelector('.work-recent-section header small');
@@ -931,13 +931,23 @@ function bindWorkImportReviewControls() {
 }
 
 function workChartsHtml(summary, scopedEntries, period) {
-  const hasData = scopedEntries.length > 0 || (summary.topServices || []).length > 0;
-  if (!hasData) return '';
+  if (!scopedEntries.length) return '';
   const periodLabel = WORK_PERIODS.find(([v]) => v === period)?.[1] || 'Period';
   const buckets = buildWorkBuckets(scopedEntries, period);
   const areaChart = buildWorkAreaChart(buckets, periodLabel);
-  const donutChart = buildServiceDonutChart(summary.topServices || []);
-  const tipsChart = buildTipsTypeChart(summary.tipsByType || {});
+  // Derive service and tip breakdowns from scoped entries so they react to the period selector
+  const svcMap = new Map();
+  const tipsByType = {};
+  for (const e of scopedEntries) {
+    const key = e.serviceName || 'Unspecified';
+    if (!svcMap.has(key)) svcMap.set(key, { serviceName: key, revenue: 0, count: 0 });
+    svcMap.get(key).revenue += Number(e.revenue || 0);
+    svcMap.get(key).count += 1;
+    if (Number(e.tipAmount) > 0) tipsByType[e.tipType || 'Other'] = (tipsByType[e.tipType || 'Other'] || 0) + Number(e.tipAmount);
+  }
+  const topServices = [...svcMap.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 6);
+  const donutChart = buildServiceDonutChart(topServices);
+  const tipsChart = buildTipsTypeChart(tipsByType);
   const payBreakdown = buildPayBreakdownChart(scopedEntries);
   const hasSecondRow = donutChart || tipsChart;
   return `<div class="work-charts-grid">
@@ -1229,6 +1239,26 @@ function parseVoiceWorkEntry(transcript, settings) {
   if (tipMatch) form.tipAmount.value = tipMatch[1];
   const clientMatch = transcript.match(/(?:client|customer)\s+(?:named?\s+)?([a-z]+)/i);
   if (clientMatch) form.clientName.value = clientMatch[1].charAt(0).toUpperCase() + clientMatch[1].slice(1);
+}
+
+function workCardsGroupedHtml(entries, settings) {
+  if (!entries.length) return '<div class="empty-state">No work entries yet.</div>';
+  const grouped = new Map();
+  for (const e of entries) {
+    const key = e.date ? e.date.slice(0, 7) : 'other';
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(e);
+  }
+  return [...grouped.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([month, monthEntries]) => {
+      const label = month === 'other' ? 'Unknown date'
+        : new Date(month + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      return `<div class="work-month-group">
+        <div class="work-month-label">${escapeHtml(label)}</div>
+        <div class="work-cards-grid">${monthEntries.map(e => workEntryHtml(e, settings)).join('')}</div>
+      </div>`;
+    }).join('');
 }
 
 function workTableHtml(entries, settings) {
