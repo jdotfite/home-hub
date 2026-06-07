@@ -2431,8 +2431,8 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .wt-icon-btn svg { width: 14px; height: 14px; display: block; }
 .wt-icon-btn.wt-edit:hover { background: rgba(255,255,255,0.06); color: #ffd60a; border-color: var(--border); }
 .wt-icon-btn.wt-delete:hover { background: rgba(239,68,68,0.08); color: #ef4444; border-color: rgba(239,68,68,0.3); }
-.work-gear-btn.wt-icon-btn { text-decoration: none; }
-.work-gear-btn.wt-icon-btn:hover { background: rgba(255,255,255,0.06); color: #ffd60a; border-color: var(--border); }
+.work-gear-btn.tips-export-btn { display: inline-flex; align-items: center; padding: 6px 10px; }
+.work-gear-btn.tips-export-btn svg { width: 14px; height: 14px; display: block; }
 
 /* Client search */
 .work-search-row { margin: 6px 0 10px; }
@@ -2606,7 +2606,8 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .work-settings-add-row input { flex: 1; background: var(--input-bg, rgba(255,255,255,.06)); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 14px; }
 @media (max-width: 1100px) {
   .work-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .work-form-grid .tips-submit-btn { grid-column: 1 / -1; justify-self: start; }
+  .work-form-submit-row { grid-column: 1 / -1; }
+  .work-form-grid .tips-submit-btn { justify-self: start; }
   .work-advanced-fields { grid-column: 1 / -1; }
   .work-edit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
