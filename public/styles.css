@@ -155,7 +155,7 @@ button:active { transform: translateY(1px); }
 .grocery-item input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--green); }
 .grocery-item.checked { opacity: .62; }
 .grocery-item.checked label span { text-decoration: line-through; }
-.walmart-link { color: var(--blue); display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; }
+.walmart-link { color: var(--blue); display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; margin-right: -4px; }
 
 pre { white-space: pre-wrap; background: white; padding: 16px; border-radius: 12px; border: 1px solid var(--border); }
 .mobile-add-panel { display: none; }
@@ -1515,6 +1515,7 @@ button:focus-visible,
   }
 
   body[data-view="grocery"] .view-header {
+    margin-top: 14px;
     margin-bottom: 14px;
   }
 
@@ -1522,6 +1523,24 @@ button:focus-visible,
     font-size: 30px;
     font-weight: 680;
     letter-spacing: -.75px;
+  }
+
+  body[data-view="grocery"] .mobile-page-title span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    background: #2a2a2a;
+    border: 1px solid #383838;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: #999;
+    padding: 2px 9px;
+    margin-left: 8px;
+    position: relative;
+    top: -2px;
   }
 
   body[data-view="grocery"] .grocery-panel {
@@ -1536,12 +1555,13 @@ button:focus-visible,
   }
 
   body[data-view="grocery"] .grocery-add {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr auto;
     gap: 9px;
+    align-items: stretch;
   }
 
   body[data-view="grocery"] #grocery-title {
-    min-height: 56px;
+    min-height: 52px;
     border: 0;
     border-radius: 6px;
     background: #282828;
@@ -1552,12 +1572,16 @@ button:focus-visible,
   }
 
   body[data-view="grocery"] #grocery-add {
-    min-height: 52px;
+    width: 52px;
+    height: 52px;
+    padding: 0;
     border-radius: 6px;
     background: #ffd60a;
     color: #111;
-    font-size: 17px;
+    display: grid;
+    place-items: center;
     box-shadow: none;
+    flex-shrink: 0;
   }
 
   body[data-view="grocery"] .recent-grocery {

@@ -96,7 +96,7 @@ function summaryCards(tasks) {
 
 function viewHeader(title, subtitle = '', showFilters = false, count = null) {
   const mobileTitle = title === 'Today' ? 'Today’s Task' : title;
-  const countLabel = Number.isInteger(count) ? ` (${count})` : '';
+  const countLabel = Number.isInteger(count) ? ` ${count}` : '';
   const eyebrow = title === 'Home' ? 'Fite Family Hub' : title === 'Family Calendar' ? 'Family Calendar' : title === 'Documents' ? 'Household Documents' : title === 'Today' ? 'Daily tasks' : 'Personal tasks';
   return `<div class="mobile-appbar" aria-label="Mobile navigation"><button type="button" onclick="history.length > 1 ? history.back() : location.href='/home'" aria-label="Back">‹</button></div>
     ${mobileCategoryNav()}
@@ -1764,7 +1764,7 @@ async function renderGrocery() {
     <section class="grocery-panel">
       <div class="grocery-add">
         <input id="grocery-title" placeholder="Add grocery item… e.g. walmart 2 paper towels" autofocus>
-        <button id="grocery-add">Add item</button>
+        <button id="grocery-add" aria-label="Add grocery item"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
       </div>
       ${recentItems.length ? recentGroceryHtml(recentItems) : ''}
       <div class="grocery-actions">
