@@ -2373,10 +2373,58 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .work-import-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 16px; }
 #work-import-status, #work-import-review { margin: 0 16px 14px; }
 .work-import-row { border-color: rgba(255, 214, 10, 0.28); }
+/* Import toggle panel */
+.work-import-container { margin-bottom: 12px; }
+.work-import-container .work-import-panel { border-color: rgba(255,214,10,.35); }
+.work-import-toggle-btn { background: transparent; border: 1px solid var(--border); }
+/* Import button now exposed */
+.work-import-panel header { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 16px 0; }
+.work-import-panel header h3 { margin: 0; font-size: 14px; }
+.work-import-panel header small { color: var(--muted); font-size: 12px; }
+/* Form submit row with voice button */
+.work-form-submit-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.work-voice-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; color: var(--text); transition: background .15s; white-space: nowrap; }
+.work-voice-btn:hover { background: rgba(255,214,10,.1); border-color: var(--accent); }
+.work-voice-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Earnings bar chart */
+.work-chart-section h4 { margin: 0 0 10px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.work-chart-scroll { overflow-x: auto; padding-bottom: 4px; }
+.work-earnings-chart { display: block; overflow: visible; }
+.work-bar-fill { fill: #ffd60a; rx: 3; }
+.work-bar-empty .work-bar-fill { fill: var(--border); }
+.work-bar-label { font-size: 8px; fill: var(--muted); font-family: inherit; }
+.work-bar-value { font-size: 8px; fill: var(--text); font-weight: 700; font-family: inherit; }
+/* Service breakdown table with bar */
+.work-service-breakdown { margin-top: 0; }
+.work-services-table { width: 100%; }
+.work-svc-bar-cell { width: 80px; padding-left: 6px !important; }
+.work-svc-bar { height: 6px; background: #ffd60a; border-radius: 3px; min-width: 2px; transition: width .3s; }
+/* Entry card improvements */
+.work-entry-left { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.work-entry-total { font-size: 18px; font-weight: 800; color: #ffd60a; letter-spacing: -.02em; }
+.work-entry-service-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.work-service-chip { background: rgba(255,214,10,.15); color: #ffd60a; border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.work-entry-client { color: var(--text); font-size: 13px; }
+.work-entry-numbers { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; color: var(--muted); }
+.work-entry-numbers b { color: var(--text); }
+.work-entry-notes { font-size: 12px; color: var(--muted); font-style: italic; }
+.work-import-badge { background: rgba(100,130,255,.18); color: #aab8ff; border: 1px solid rgba(100,130,255,.3); }
+/* Inline edit form */
+.work-edit-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.work-edit-actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+.work-edit-cancel-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; cursor: pointer; color: var(--muted); }
+/* Work settings — service chip list */
+.work-settings-services { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 0; }
+.work-settings-service-chip { display: flex; align-items: center; gap: 4px; background: rgba(255,214,10,.12); border: 1px solid rgba(255,214,10,.3); border-radius: 20px; padding: 4px 10px; font-size: 13px; font-weight: 600; color: var(--text); }
+.work-settings-remove-service { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 15px; line-height: 1; padding: 0 2px; }
+.work-settings-remove-service:hover { color: #ff6b6b; }
+.work-settings-add-row { display: flex; gap: 8px; align-items: center; padding-top: 8px; border-top: 1px solid var(--border); margin-top: 4px; }
+.work-settings-add-row input { flex: 1; background: var(--input-bg, rgba(255,255,255,.06)); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 14px; }
 @media (max-width: 1100px) {
   .work-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .work-form-grid .tips-submit-btn { grid-column: 1 / -1; justify-self: start; }
   .work-advanced-fields { grid-column: 1 / -1; }
+  .work-edit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
   .work-dashboard-tools { align-items: stretch; }
@@ -2387,4 +2435,6 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
   .work-form-grid { grid-template-columns: 1fr; }
   .work-advanced-fields > div { grid-template-columns: 1fr; }
   .work-recent-section > header { align-items: flex-start; flex-direction: column; }
+  .work-edit-grid { grid-template-columns: 1fr; }
+  .work-form-submit-row { width: 100%; }
 }

@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS = {
   defaultCommissionRate: 0.1,
   serviceRateRules: [],
   tipTypes: ['Cash', 'Tippy', 'Venmo', 'Other'],
+  serviceNames: ['IPL', 'Peel', 'Facial', 'Wax', 'Lash', 'Product', 'Botox', 'Filler', 'Other'],
 };
 
 function apiError(message, status) {
@@ -58,6 +59,9 @@ function normalizeSettings(settings = {}) {
     tipTypes: Array.isArray(merged.tipTypes) && merged.tipTypes.length
       ? [...new Set(merged.tipTypes.map(type => String(type || '').trim()).filter(Boolean))]
       : DEFAULT_SETTINGS.tipTypes,
+    serviceNames: Array.isArray(merged.serviceNames) && merged.serviceNames.length
+      ? [...new Set(merged.serviceNames.map(n => String(n || '').trim()).filter(Boolean))]
+      : DEFAULT_SETTINGS.serviceNames,
   };
 }
 

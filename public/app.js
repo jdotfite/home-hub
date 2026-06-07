@@ -516,9 +516,15 @@ function bindCalendarSourceToggles() {
 async function renderSettings() {
   setActiveNav();
   setBodyView('settings');
-  const { calendars, events } = await api('/api/calendar');
+  const [calendarData, { profiles: settingsProfiles }, workSettingsData] = await Promise.all([
+    api('/api/calendar'),
+    api('/api/profiles').catch(() => ({ profiles: [] })),
+    api('/api/work/settings').catch(() => ({ settings: {} })),
+  ]);
+  const { calendars, events } = calendarData;
   const hidden = hiddenCalendarSourceIds();
-  const { profiles: settingsProfiles } = await api('/api/profiles').catch(() => ({ profiles: [] }));
+  const workSettings = workSettingsData.settings || {};
+  const serviceNames = workSettings.serviceNames || ['IPL', 'Peel', 'Facial', 'Wax', 'Lash', 'Product', 'Other'];
   content.innerHTML = viewHeader('Settings', 'Personalize this device without changing the family source of truth.') + `
     <section class="settings-card">
       <header><div><p class="eyebrow">Profiles</p><h3>Avatars</h3><p>Avatars are stored on the server and shown on the login screen.</p></div></header>
@@ -543,6 +549,16 @@ async function renderSettings() {
       <header><div><p class="eyebrow">Calendar Sources</p><h3>Show or hide calendars</h3><p>These toggles are saved on this browser only. Private iCal URLs stay on the server.</p></div><a href="/calendar">View calendar →</a></header>
       <div class="settings-calendar-list">${(calendars || []).length ? calendars.map(source => `<div class="settings-calendar-row">${calendarSourceChip(source)}<small>${(events || []).filter(event => event.sourceId === source.id).length} upcoming</small></div>`).join('') : '<div class="empty-state">No calendar sources configured.</div>'}</div>
       ${hidden.size ? '<button type="button" id="show-all-calendars">Show all calendars</button>' : ''}
+    </section>
+    <section class="settings-card" id="work-settings-card">
+      <header><div><p class="eyebrow">Work · Kari</p><h3>Service names</h3><p>These appear in the dropdown when logging work. Drag to reorder, click × to remove.</p></div><a href="/work">Go to Work →</a></header>
+      <div class="work-settings-services" id="work-settings-services">
+        ${serviceNames.map(n => `<div class="work-settings-service-chip">${escapeHtml(n)}<button type="button" class="work-settings-remove-service" data-name="${escapeAttribute(n)}" aria-label="Remove ${escapeHtml(n)}">×</button></div>`).join('')}
+      </div>
+      <div class="work-settings-add-row">
+        <input type="text" id="work-settings-new-service" placeholder="Add a service…" autocomplete="off" maxlength="40">
+        <button type="button" id="work-settings-add-service" class="tips-submit-btn">Add</button>
+      </div>
     </section>`;
   bindCalendarSourceToggles();
   $('#show-all-calendars')?.addEventListener('click', () => { saveHiddenCalendarSourceIds(new Set()); renderSettings(); });
@@ -571,6 +587,36 @@ async function renderSettings() {
       renderSettings();
     });
   });
+
+  async function saveServiceNames(names) {
+    await api('/api/work/settings', { method: 'PATCH', body: JSON.stringify({ ...workSettings, serviceNames: names }) });
+  }
+
+  function currentServiceNames() {
+    return [...$('#work-settings-services').querySelectorAll('.work-settings-service-chip')].map(el => el.firstChild.textContent.trim());
+  }
+
+  content.querySelectorAll('.work-settings-remove-service').forEach(btn => {
+    btn.onclick = async () => {
+      const name = btn.dataset.name;
+      const updated = serviceNames.filter(n => n !== name);
+      await saveServiceNames(updated);
+      renderSettings();
+    };
+  });
+
+  const addBtn = $('#work-settings-add-service');
+  const addInput = $('#work-settings-new-service');
+  if (addBtn && addInput) {
+    const doAdd = async () => {
+      const name = addInput.value.trim();
+      if (!name || serviceNames.includes(name)) { addInput.value = ''; return; }
+      await saveServiceNames([...currentServiceNames(), name]);
+      renderSettings();
+    };
+    addBtn.onclick = doAdd;
+    addInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } });
+  }
 }
 
 async function renderDocuments() {
@@ -661,13 +707,18 @@ async function renderWork() {
   const pct = n => `${Math.round(Number(n || 0) * 1000) / 10}%`;
   const scopedEntries = workEntriesForPeriod(entries, workPeriod);
   const scopedSummary = summarizeWorkEntries(scopedEntries);
-  const visibleEntries = scopedEntries.slice(0, 25);
+  const visibleEntries = entries.slice(0, 30);
   const periodLabel = WORK_PERIODS.find(([value]) => value === workPeriod)?.[1] || 'Month';
-  content.innerHTML = viewHeader('Work', `${summary.entryCount.toLocaleString()} work entr${summary.entryCount === 1 ? 'y' : 'ies'} logged. Showing ${periodLabel.toLowerCase()} earnings first.`) + `
+  const serviceNames = settings.serviceNames || ['IPL', 'Peel', 'Facial', 'Wax', 'Lash', 'Product', 'Other'];
+  content.innerHTML = viewHeader('Work', `${summary.entryCount.toLocaleString()} work entr${summary.entryCount === 1 ? 'y' : 'ies'} logged. ${periodLabel} summary below.`) + `
     <section class="work-dashboard-tools">
       ${workPeriodControlsHtml()}
-      ${entries.length ? `<div class="tips-export-row work-actions-row"><a class="tips-export-btn" href="/api/work/export.csv" download="work-export.csv">↓ Export CSV</a></div>` : ''}
+      <div class="tips-export-row work-actions-row">
+        ${entries.length ? `<a class="tips-export-btn" href="/api/work/export.csv" download="work-export.csv">↓ Export CSV</a>` : ''}
+        <button type="button" class="tips-export-btn work-import-toggle-btn" id="work-import-toggle">↑ Import</button>
+      </div>
     </section>
+    <div id="work-import-panel-container" class="work-import-container" hidden>${workImportPanelInner(importResponse.batches || [])}</div>
     <section class="tips-summary-grid work-summary-grid">
       <div class="tip-stat"><span class="tip-stat-amount">${escapeHtml(workMoney(scopedSummary.revenue, true))}</span><small>Revenue · ${escapeHtml(periodLabel)}</small></div>
       <div class="tip-stat"><span class="tip-stat-amount">${escapeHtml(workMoney(scopedSummary.payout, true))}</span><small>Payout</small></div>
@@ -675,17 +726,22 @@ async function renderWork() {
       <div class="tip-stat"><span class="tip-stat-amount">${escapeHtml(workMoney(scopedSummary.totalEarnings, true))}</span><small>Total earnings</small></div>
     </section>
     <p class="work-history-note">All-time: ${escapeHtml(workMoney(summary.revenue))} revenue · ${escapeHtml(workMoney(summary.payout))} payout · ${escapeHtml(workMoney(summary.tips))} tips.</p>
+    ${workChartsHtml(summary, scopedEntries, workPeriod)}
     <section class="hub-panel tips-log-panel work-log-panel">
       <header><h3>Log work</h3><small>Default commission ${escapeHtml(pct(settings.defaultCommissionRate))}</small></header>
       <form id="work-form" class="tips-form work-form">
+        <datalist id="work-service-names">${serviceNames.map(n => `<option value="${escapeAttribute(n)}">`).join('')}</datalist>
         <div class="tips-form-row work-form-grid">
           <label class="work-field-date">Date<input type="date" name="date" value="${escapeAttribute(today)}" required></label>
-          <label class="work-field-client">Client<input type="text" name="clientName" placeholder="Client name"></label>
-          <label class="work-field-service">Service/Product<input type="text" name="serviceName" placeholder="IPL, peel, product…"></label>
+          <label class="work-field-client">Client<input type="text" name="clientName" placeholder="Client name" autocomplete="off"></label>
+          <label class="work-field-service">Service/Product<input type="text" name="serviceName" list="work-service-names" placeholder="Choose or type…" autocomplete="off"></label>
           <label>Revenue&nbsp;$<input type="number" name="revenue" placeholder="0" step="0.01" min="0" required></label>
           <label>Tip&nbsp;$<input type="number" name="tipAmount" placeholder="0" step="0.01" min="0"></label>
           <label>Tip type<select name="tipType"><option value=""></option>${(settings.tipTypes || ['Cash', 'Tippy', 'Venmo', 'Other']).map(type => `<option value="${escapeAttribute(type)}">${escapeHtml(type)}</option>`).join('')}</select></label>
-          <button type="submit" class="tips-submit-btn">Save work</button>
+          <div class="work-form-submit-row">
+            <button type="submit" class="tips-submit-btn">Save work</button>
+            <button type="button" class="work-voice-btn" id="work-voice-btn" title="Speak: service revenue tip">🎤 Voice</button>
+          </div>
           <details class="work-advanced-fields">
             <summary>Advanced fields</summary>
             <div>
@@ -697,12 +753,10 @@ async function renderWork() {
         </div>
       </form>
     </section>
-    ${workChartsHtml(summary)}
-    ${workImportPanelHtml(importResponse.batches || [])}
     <section class="work-recent-section">
-      <header><h3>Recent entries</h3><small>${scopedEntries.length.toLocaleString()} in ${escapeHtml(periodLabel.toLowerCase())}${scopedEntries.length > visibleEntries.length ? ` · showing latest ${visibleEntries.length}` : ''}</small></header>
+      <header><h3>Recent entries</h3><small>${entries.length.toLocaleString()} total${entries.length > visibleEntries.length ? ` · showing latest ${visibleEntries.length}` : ''}</small></header>
       <div id="work-list" class="tips-shifts work-shifts">
-        ${visibleEntries.length ? visibleEntries.map(workEntryHtml).join('') : '<div class="empty-state">No work entries in this timeframe yet.</div>'}
+        ${visibleEntries.length ? visibleEntries.map(e => workEntryHtml(e, settings)).join('') : '<div class="empty-state">No work entries yet. Log your first entry above.</div>'}
       </div>
     </section>`;
 
@@ -724,8 +778,17 @@ async function renderWork() {
     renderWork();
   };
 
-  bindWorkControls(visibleEntries);
+  $('#work-import-toggle').onclick = () => {
+    const panel = $('#work-import-panel-container');
+    if (panel) {
+      panel.hidden = !panel.hidden;
+      $('#work-import-toggle').textContent = panel.hidden ? '↑ Import' : '✕ Import';
+    }
+  };
+
+  bindWorkControls(visibleEntries, settings);
   bindWorkImportControls();
+  setupWorkVoiceInput(settings);
   content.querySelectorAll('[data-work-period]').forEach(btn => {
     btn.onclick = () => {
       workPeriod = btn.dataset.workPeriod;
@@ -734,7 +797,7 @@ async function renderWork() {
   });
 }
 
-function workImportPanelHtml(batches = []) {
+function workImportPanelInner(batches = []) {
   const defaultPaths = [
     '/home/agent/.hermes/cache/documents/doc_78fef06f7088_2023_Commission_Spreadsheet.xlsx',
     '/home/agent/.hermes/cache/documents/doc_01440aefb993_2024_Commission_Spreadsheet.xlsx',
@@ -743,9 +806,9 @@ function workImportPanelHtml(batches = []) {
   ].join('\n');
   const latest = batches[0];
   const latestSummary = latest ? importBatchSummaryHtml(latest) : 'No import batch staged yet.';
-  return `<details class="hub-panel work-import-panel">
-    <summary><span><strong>Spreadsheet import</strong><small>${escapeHtml(latestSummary)}</small></span><span class="work-import-chevron">Admin</span></summary>
-    <p class="work-import-help">Dry-run spreadsheet paths here only when migrating or rechecking historical workbooks.</p>
+  return `<div class="hub-panel work-import-panel">
+    <header><h3>Spreadsheet import</h3><small>${escapeHtml(latestSummary)}</small></header>
+    <p class="work-import-help">Paste workbook paths below, then dry-run to preview rows before committing.</p>
     <textarea id="work-import-paths" rows="4" spellcheck="false">${escapeHtml(defaultPaths)}</textarea>
     <div class="work-import-actions">
       <button type="button" id="work-import-dry-run" class="tips-submit-btn">Dry-run import</button>
@@ -753,7 +816,7 @@ function workImportPanelHtml(batches = []) {
     </div>
     <div id="work-import-status" class="tips-shift-breakdown">${escapeHtml(latestSummary)}</div>
     <div id="work-import-review"></div>
-  </details>`;
+  </div>`;
 }
 
 function importBatchSummaryHtml(batch) {
@@ -821,15 +884,110 @@ function bindWorkImportReviewControls() {
   };
 }
 
-function workChartsHtml(summary) {
-  const serviceRows = (summary.topServices || []).slice(0, 5).map(service => `<tr><td>${escapeHtml(service.serviceName)}</td><td class="tip-num">${escapeHtml(workMoney(service.revenue))}</td><td class="tip-num tip-muted">${Number(service.count || 0).toLocaleString()}</td></tr>`).join('');
-  if (!serviceRows) return '';
+function workChartsHtml(summary, scopedEntries, period) {
+  const topServices = (summary.topServices || []).slice(0, 5);
+  if (!topServices.length && !scopedEntries.length) return '';
+
+  const barChart = buildWorkEarningsBarChart(scopedEntries, period);
+
+  const serviceRows = topServices.map(service => {
+    const pct = summary.totalEarnings > 0 ? Math.round((service.revenue / summary.revenue) * 100) : 0;
+    return `<tr>
+      <td>${escapeHtml(service.serviceName)}</td>
+      <td class="tip-num">${escapeHtml(workMoney(service.revenue))}</td>
+      <td class="tip-num tip-muted">${Number(service.count || 0)}×</td>
+      <td class="work-svc-bar-cell"><div class="work-svc-bar" style="width:${pct}%"></div></td>
+    </tr>`;
+  }).join('');
+
   return `<div class="tips-breakdown work-breakdown">
-    <section class="tips-breakdown-section"><h4>Top services</h4><table class="tips-breakdown-table"><tbody>${serviceRows}</tbody></table></section>
+    ${barChart}
+    ${serviceRows ? `<section class="tips-breakdown-section work-service-breakdown"><h4>Top services</h4><table class="tips-breakdown-table work-services-table"><tbody>${serviceRows}</tbody></table></section>` : ''}
   </div>`;
 }
 
-function bindWorkControls(entries) {
+function buildWorkEarningsBarChart(entries, period) {
+  if (!entries.length) return '';
+  const now = new Date();
+
+  let buckets = [];
+  if (period === 'today') {
+    const todayStr = now.toISOString().slice(0, 10);
+    const todayEntries = entries.filter(e => e.date === todayStr);
+    if (!todayEntries.length) return '';
+    for (let h = 8; h <= 20; h++) {
+      buckets.push({ label: `${h > 12 ? h - 12 : h}${h >= 12 ? 'pm' : 'am'}`, value: 0 });
+    }
+    return '';
+  } else if (period === 'week') {
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    weekStart.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const dayEntries = entries.filter(e => e.date === dateStr);
+      const total = dayEntries.reduce((s, e) => s + Number(e.totalEarnings || 0), 0);
+      buckets.push({ label: d.toLocaleDateString('en-US', { weekday: 'short' }), value: total });
+    }
+  } else if (period === 'month') {
+    const monthStr = now.toISOString().slice(0, 7);
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const weekBuckets = new Map();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), day);
+      const weekNum = Math.ceil(day / 7);
+      if (!weekBuckets.has(weekNum)) weekBuckets.set(weekNum, { label: `Wk ${weekNum}`, value: 0 });
+      const dateStr = `${monthStr}-${String(day).padStart(2, '0')}`;
+      entries.filter(e => e.date === dateStr).forEach(e => {
+        weekBuckets.get(weekNum).value += Number(e.totalEarnings || 0);
+      });
+    }
+    buckets = [...weekBuckets.values()];
+  } else {
+    const monthMap = new Map();
+    for (let m = 11; m >= 0; m--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - m, 1);
+      const key = d.toISOString().slice(0, 7);
+      monthMap.set(key, { label: d.toLocaleDateString('en-US', { month: 'short' }), value: 0 });
+    }
+    entries.forEach(e => {
+      const key = e.date.slice(0, 7);
+      if (monthMap.has(key)) monthMap.get(key).value += Number(e.totalEarnings || 0);
+    });
+    buckets = [...monthMap.values()];
+  }
+
+  if (!buckets.some(b => b.value > 0)) return '';
+
+  const maxVal = Math.max(...buckets.map(b => b.value), 1);
+  const barW = Math.max(8, Math.floor(280 / buckets.length) - 4);
+  const chartW = buckets.length * (barW + 4);
+  const chartH = 72;
+  const bars = buckets.map((b, i) => {
+    const barH = Math.max(2, Math.round((b.value / maxVal) * chartH));
+    const x = i * (barW + 4);
+    const y = chartH - barH;
+    const active = b.value > 0 ? '' : ' work-bar-empty';
+    return `<g class="work-bar-group${active}">
+      <rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="3" class="work-bar-fill"/>
+      <text x="${x + barW / 2}" y="${chartH + 12}" text-anchor="middle" class="work-bar-label">${escapeHtml(b.label)}</text>
+      ${b.value > 0 ? `<text x="${x + barW / 2}" y="${y - 4}" text-anchor="middle" class="work-bar-value">${escapeHtml(workMoney(b.value, true))}</text>` : ''}
+    </g>`;
+  }).join('');
+
+  return `<section class="tips-breakdown-section work-chart-section">
+    <h4>Earnings · ${escapeHtml(WORK_PERIODS.find(([v]) => v === period)?.[1] || 'Period')}</h4>
+    <div class="work-chart-scroll">
+      <svg class="work-earnings-chart" viewBox="0 0 ${chartW} ${chartH + 20}" width="${chartW}" height="${chartH + 20}" aria-label="Earnings bar chart">
+        ${bars}
+      </svg>
+    </div>
+  </section>`;
+}
+
+function bindWorkControls(entries, settings) {
   content.querySelectorAll('.work-delete-btn').forEach(btn => {
     btn.onclick = async e => {
       const card = e.currentTarget.closest('.work-entry');
@@ -839,19 +997,139 @@ function bindWorkControls(entries) {
       renderWork();
     };
   });
+  content.querySelectorAll('.work-edit-btn').forEach(btn => {
+    btn.onclick = e => {
+      const card = e.currentTarget.closest('.work-entry');
+      const id = card.dataset.id;
+      const entry = entries.find(en => en.id === id);
+      if (!entry) return;
+      const formHtml = workEditFormHtml(entry, settings);
+      card.innerHTML = formHtml;
+      bindWorkEditForm(card, entry, settings);
+    };
+  });
 }
 
-function workEntryHtml(entry) {
+function workEditFormHtml(entry, settings) {
+  const rateVal = String(Math.round(Number(entry.commissionRate || 0) * 1000) / 10);
+  const serviceNames = settings.serviceNames || ['IPL', 'Peel', 'Facial', 'Wax', 'Lash', 'Product', 'Other'];
+  return `<datalist id="work-edit-service-names">${serviceNames.map(n => `<option value="${escapeAttribute(n)}">`).join('')}</datalist>
+  <form class="work-edit-form tips-form">
+    <div class="work-form-grid work-edit-grid">
+      <label>Date<input type="date" name="date" value="${escapeAttribute(entry.date)}" required></label>
+      <label>Client<input type="text" name="clientName" value="${escapeAttribute(entry.clientName || '')}" autocomplete="off"></label>
+      <label>Service<input type="text" name="serviceName" list="work-edit-service-names" value="${escapeAttribute(entry.serviceName || '')}" autocomplete="off"></label>
+      <label>Revenue&nbsp;$<input type="number" name="revenue" value="${escapeAttribute(String(entry.revenue || 0))}" step="0.01" min="0" required></label>
+      <label>Tip&nbsp;$<input type="number" name="tipAmount" value="${escapeAttribute(String(entry.tipAmount || 0))}" step="0.01" min="0"></label>
+      <label>Tip type<select name="tipType"><option value=""></option>${(settings.tipTypes || ['Cash', 'Tippy', 'Venmo', 'Other']).map(t => `<option value="${escapeAttribute(t)}"${entry.tipType === t ? ' selected' : ''}>${escapeHtml(t)}</option>`).join('')}</select></label>
+      <label>Rate&nbsp;%<input type="number" name="commissionRatePercent" value="${escapeAttribute(rateVal)}" step="0.1" min="0" max="100"></label>
+      <label>Deductions&nbsp;$<input type="number" name="deductions" value="${escapeAttribute(String(entry.deductions || 0))}" step="0.01" min="0"></label>
+      <label class="tips-notes-label">Notes<input type="text" name="notes" value="${escapeAttribute(entry.notes || '')}" placeholder="Optional…"></label>
+      <div class="work-edit-actions">
+        <button type="submit" class="tips-submit-btn">Save changes</button>
+        <button type="button" class="work-edit-cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </form>`;
+}
+
+function bindWorkEditForm(card, entry, settings) {
+  card.querySelector('.work-edit-cancel-btn').onclick = () => {
+    card.innerHTML = workEntryHtml(entry, settings).replace(/^<article[^>]*>|<\/article>$/g, '');
+    card.outerHTML = workEntryHtml(entry, settings);
+  };
+  card.querySelector('.work-edit-form').onsubmit = async e => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const data = {
+      date: fd.get('date'),
+      clientName: fd.get('clientName') || '',
+      serviceName: fd.get('serviceName') || '',
+      revenue: parseFloat(fd.get('revenue')) || 0,
+      commissionRate: (parseFloat(fd.get('commissionRatePercent')) || 0) / 100,
+      deductions: parseFloat(fd.get('deductions')) || 0,
+      tipAmount: parseFloat(fd.get('tipAmount')) || 0,
+      tipType: fd.get('tipType') || '',
+      notes: fd.get('notes') || '',
+    };
+    await api(`/api/work/${entry.id}`, { method: 'PATCH', body: JSON.stringify(data) });
+    renderWork();
+  };
+}
+
+function setupWorkVoiceInput(settings) {
+  const btn = $('#work-voice-btn');
+  if (!btn) return;
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    btn.title = 'Voice input not supported in this browser';
+    btn.style.opacity = '0.4';
+    return;
+  }
+  btn.onclick = () => {
+    const rec = new SpeechRecognition();
+    rec.lang = 'en-US';
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    btn.textContent = '🔴 Listening…';
+    btn.disabled = true;
+    rec.start();
+    rec.onresult = e => {
+      const transcript = e.results[0][0].transcript.toLowerCase();
+      parseVoiceWorkEntry(transcript, settings);
+      btn.textContent = '🎤 Voice';
+      btn.disabled = false;
+    };
+    rec.onerror = rec.onend = () => {
+      btn.textContent = '🎤 Voice';
+      btn.disabled = false;
+    };
+  };
+}
+
+function parseVoiceWorkEntry(transcript, settings) {
+  const form = $('#work-form');
+  if (!form) return;
+  const serviceNames = settings.serviceNames || ['IPL', 'Peel', 'Facial', 'Wax', 'Lash', 'Product', 'Other'];
+  const matchedService = serviceNames.find(s => transcript.includes(s.toLowerCase()));
+  if (matchedService) form.serviceName.value = matchedService;
+  const revenueMatch = transcript.match(/(\d+(?:\.\d{1,2})?)\s*(?:dollars?|revenue|service)/i)
+    || transcript.match(/revenue\s+(?:of\s+)?(\d+(?:\.\d{1,2})?)/i);
+  if (revenueMatch) form.revenue.value = revenueMatch[1];
+  const tipMatch = transcript.match(/tip\s+(?:of\s+)?(\d+(?:\.\d{1,2})?)/i)
+    || transcript.match(/(\d+(?:\.\d{1,2})?)\s*(?:dollar\s+)?tip/i);
+  if (tipMatch) form.tipAmount.value = tipMatch[1];
+  const clientMatch = transcript.match(/(?:client|customer)\s+(?:named?\s+)?([a-z]+)/i);
+  if (clientMatch) form.clientName.value = clientMatch[1].charAt(0).toUpperCase() + clientMatch[1].slice(1);
+}
+
+function workEntryHtml(entry, settings) {
   const rate = Math.round(Number(entry.commissionRate || 0) * 1000) / 10;
+  const sourceTag = entry.source === 'import' ? `<span class="badge work-import-badge">Imported</span>` : '';
   return `<article class="tips-shift work-entry" data-id="${escapeAttribute(entry.id)}">
     <div class="tips-shift-header">
-      <span><span class="tips-shift-date">${escapeHtml(formatDateLabel(entry.date))}</span> ${entry.needsReview ? '<span class="badge waiting">Needs review</span>' : ''}</span>
-      <span class="tips-shift-total">${escapeHtml(workMoney(entry.totalEarnings))}</span>
+      <span class="work-entry-left">
+        <span class="tips-shift-date">${escapeHtml(formatDateLabel(entry.date))}</span>
+        ${entry.needsReview ? '<span class="badge waiting">Review</span>' : ''}
+        ${sourceTag}
+      </span>
+      <span class="tips-shift-total work-entry-total">${escapeHtml(workMoney(entry.totalEarnings))}</span>
     </div>
-    <div class="tips-shift-breakdown"><strong>${escapeHtml(entry.clientName || 'No client')}</strong> · ${escapeHtml(entry.serviceName || 'No service')}</div>
-    <div class="tips-shift-breakdown">Revenue ${escapeHtml(workMoney(entry.revenue))} · Rate ${escapeHtml(String(rate))}% · Commission ${escapeHtml(workMoney(entry.commissionAmount))} · Payout ${escapeHtml(workMoney(entry.payout))}${entry.tipAmount ? ` · Tip ${escapeHtml(workMoney(entry.tipAmount))} ${escapeHtml(entry.tipType || '')}` : ''}</div>
-    ${entry.notes ? `<div class="tips-shift-breakdown"><span class="tips-shift-notes">${escapeHtml(entry.notes)}</span></div>` : ''}
-    <div class="tips-shift-actions"><button type="button" class="work-delete-btn">Delete</button></div>
+    <div class="tips-shift-breakdown work-entry-service-row">
+      ${entry.serviceName ? `<span class="work-service-chip">${escapeHtml(entry.serviceName)}</span>` : ''}
+      <span class="work-entry-client">${escapeHtml(entry.clientName || 'No client')}</span>
+    </div>
+    <div class="tips-shift-breakdown work-entry-numbers">
+      <span>Revenue <b>${escapeHtml(workMoney(entry.revenue))}</b></span>
+      <span class="tip-muted">·</span>
+      <span>Payout <b>${escapeHtml(workMoney(entry.payout))}</b></span>
+      ${entry.tipAmount ? `<span class="tip-muted">·</span><span>Tip <b>${escapeHtml(workMoney(entry.tipAmount))}</b>${entry.tipType ? ` <span class="tip-muted">${escapeHtml(entry.tipType)}</span>` : ''}</span>` : ''}
+    </div>
+    ${entry.notes ? `<div class="tips-shift-breakdown work-entry-notes">${escapeHtml(entry.notes)}</div>` : ''}
+    <div class="tips-shift-actions">
+      <button type="button" class="work-edit-btn">Edit</button>
+      <button type="button" class="work-delete-btn">Delete</button>
+    </div>
   </article>`;
 }
 
