@@ -2104,16 +2104,14 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .tips-shift-notes { color: var(--faint); font-style: italic; }
 .tips-shift-actions { display: flex; gap: 8px; }
 .tips-shift-actions button { font-size: 12px; padding: 5px 10px; border-radius: 8px; cursor: pointer; }
-.work-edit-btn {
-  font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 8px; cursor: pointer;
-  background: #252525; color: var(--text); border: 1px solid var(--border);
+.work-edit-btn, .work-delete-btn {
+  font-size: 12px; font-weight: 750; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+  background: transparent; border: 1px solid var(--border); text-decoration: none;
 }
-.work-edit-btn:hover { background: #2e2e2e; }
-.work-delete-btn {
-  font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 8px; cursor: pointer;
-  background: transparent; color: #ef4444; border: 1px solid rgba(239,68,68,0.22);
-}
-.work-delete-btn:hover { background: rgba(239,68,68,0.08); }
+.work-edit-btn { color: var(--muted); }
+.work-edit-btn:hover { color: #ffd60a; border-color: #ffd60a; }
+.work-delete-btn { color: #ef4444; border-color: rgba(239,68,68,0.3); }
+.work-delete-btn:hover { background: rgba(239,68,68,0.08); border-color: #ef4444; }
 
 /* Tips breakdown + export */
 .tips-export-row { display: flex; justify-content: flex-end; margin-bottom: 4px; }
@@ -2436,12 +2434,17 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .work-client-search::placeholder { color: var(--muted, #888); }
 
 /* View toggle (Cards / Table) */
-.work-view-toggle { display: flex; gap: 4px; }
-.work-view-toggle .btn-sm.active {
-  background: var(--accent, #ffd60a);
-  color: #000;
-  border-color: var(--accent, #ffd60a);
+.work-view-toggle {
+  display: inline-flex; gap: 4px; padding: 3px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: rgba(255,255,255,.04);
 }
+.work-view-btn {
+  border: 0; border-radius: 999px; padding: 5px 12px;
+  background: transparent; color: var(--muted);
+  font-size: 12px; font-weight: 800; cursor: pointer;
+}
+.work-view-btn.active { background: #ffd60a; color: #111; }
 
 @media (max-width: 480px) {
   .work-charts-row { flex-direction: column; }
