@@ -2398,6 +2398,9 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .work-table th {
   padding: 9px 10px;
   text-align: left;
+}
+.work-table th.wt-num {
+  text-align: right;
   font-size: 11px;
   font-weight: 600;
   color: var(--muted, #888);
