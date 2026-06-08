@@ -15,6 +15,8 @@ import { registerGroceryRoutes } from './modules/grocery/api.js';
 import { registerTaskRoutes } from './modules/tasks/api.js';
 import { appPageRoutes } from './modules/registry.js';
 import { registerProfileRoutes } from './profiles.js';
+import { voiceParse } from './voiceParse.js';
+import { scanGrocery } from './groceryScan.js';
 
 export function createApp() {
   const app = express();
@@ -49,6 +51,21 @@ export function createApp() {
   registerWorkRoutes(app);
   registerTipsRoutes(app);
   registerChatRoutes(app);
+
+  app.post('/api/grocery/scan', async (req, res, next) => {
+    try {
+      const { barcode, image } = req.body;
+      res.json(await scanGrocery({ barcode, image }));
+    } catch (err) { next(err); }
+  });
+
+  app.post('/api/voice/parse', async (req, res, next) => {
+    try {
+      const { transcript, schema } = req.body;
+      if (!transcript || !schema) return res.status(400).json({ error: 'transcript and schema required' });
+      res.json(await voiceParse(transcript, schema));
+    } catch (err) { next(err); }
+  });
 
   app.get('/api/eink/today', async (_req, res, next) => {
     try { res.json(await einkToday()); } catch (err) { next(err); }

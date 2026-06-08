@@ -1230,37 +1230,135 @@ function workEditFormHtml(entry, settings) {
   </form>`;
 }
 
+function startVoice(btn, originalLabel, onTranscript) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const rec = new SpeechRecognition();
+  rec.lang = 'en-US';
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  btn.textContent = '🔴 Listening…';
+  btn.disabled = true;
+  let gotResult = false;
+  rec.start();
+  rec.onresult = e => {
+    gotResult = true;
+    onTranscript(e.results[0][0].transcript);
+  };
+  rec.onerror = () => { btn.textContent = originalLabel; btn.disabled = false; };
+  rec.onend = () => { if (!gotResult) { btn.textContent = originalLabel; btn.disabled = false; } };
+}
+
 function setupWorkVoiceInput(settings) {
   const btn = $('#work-voice-btn');
   if (!btn) return;
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
+  if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
     btn.title = 'Voice input not supported in this browser';
     btn.style.opacity = '0.4';
     return;
   }
-  btn.onclick = () => {
-    const rec = new SpeechRecognition();
-    rec.lang = 'en-US';
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
-    btn.textContent = '🔴 Listening…';
-    btn.disabled = true;
-    rec.start();
-    rec.onresult = e => {
-      const transcript = e.results[0][0].transcript.toLowerCase();
-      parseVoiceWorkEntry(transcript, settings);
+  btn.onclick = () => startVoice(btn, '🎤 Voice', async transcript => {
+    btn.textContent = '⏳ Parsing…';
+    try {
+      const result = await api('/api/voice/parse', { method: 'POST', body: JSON.stringify({ transcript, schema: 'work' }) });
+      applyWorkVoiceResult(result, settings);
+    } catch {
+      parseVoiceWorkEntryFallback(transcript.toLowerCase(), settings);
+    } finally {
       btn.textContent = '🎤 Voice';
       btn.disabled = false;
-    };
-    rec.onerror = rec.onend = () => {
-      btn.textContent = '🎤 Voice';
+    }
+  });
+}
+
+function applyWorkVoiceResult(result, settings) {
+  const form = $('#work-form');
+  if (!form) return;
+  if (result.clientName) form.clientName.value = result.clientName;
+  if (result.serviceName) form.serviceName.value = result.serviceName;
+  if (result.revenue) form.revenue.value = result.revenue;
+  if (result.tipAmount) form.tipAmount.value = result.tipAmount;
+  if (result.tipType) form.tipType.value = result.tipType;
+}
+
+function setupGroceryVoiceInput() {
+  const btn = $('#grocery-voice-btn');
+  if (!btn) return;
+  if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+    btn.style.display = 'none';
+    return;
+  }
+  btn.onclick = () => startVoice(btn, '🎤', async transcript => {
+    btn.textContent = '⏳';
+    try {
+      const { items } = await api('/api/voice/parse', { method: 'POST', body: JSON.stringify({ transcript, schema: 'grocery' }) });
+      if (Array.isArray(items) && items.length) {
+        await Promise.all(items.map(item => api('/api/grocery', { method: 'POST', body: JSON.stringify({ ...item, source: 'voice' }) })));
+        renderGrocery();
+      }
+    } catch {
+      // fail silently — user can type manually
+    } finally {
+      btn.textContent = '🎤';
       btn.disabled = false;
+    }
+  });
+}
+
+function resizeImage(file, maxPx) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
     };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image load failed')); };
+    img.src = url;
+  });
+}
+
+function setupGroceryScanInput() {
+  const scanBtn = $('#grocery-scan-btn');
+  const scanInput = $('#grocery-scan-input');
+  if (!scanBtn || !scanInput) return;
+  scanBtn.onclick = () => scanInput.click();
+  scanInput.onchange = async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    scanBtn.textContent = '⏳';
+    scanBtn.disabled = true;
+    scanInput.value = '';
+    try {
+      let body;
+      if ('BarcodeDetector' in window) {
+        try {
+          const detector = new BarcodeDetector();
+          const bitmap = await createImageBitmap(file);
+          const codes = await detector.detect(bitmap);
+          if (codes.length) body = { barcode: codes[0].rawValue };
+        } catch {}
+      }
+      if (!body) body = { image: await resizeImage(file, 1024) };
+      const { items } = await api('/api/grocery/scan', { method: 'POST', body: JSON.stringify(body) });
+      if (Array.isArray(items) && items.length) {
+        await Promise.all(items.map(item => api('/api/grocery', { method: 'POST', body: JSON.stringify({ ...item, source: 'scan' }) })));
+        renderGrocery();
+      }
+    } catch {
+      // fail silently — user can type manually
+    } finally {
+      scanBtn.textContent = '📷';
+      scanBtn.disabled = false;
+    }
   };
 }
 
-function parseVoiceWorkEntry(transcript, settings) {
+function parseVoiceWorkEntryFallback(transcript, settings) {
   const form = $('#work-form');
   if (!form) return;
   const serviceNames = settings.serviceNames || ['IPL', 'Peel', 'Facial', 'Wax', 'Lash', 'Product', 'Other'];
@@ -1766,7 +1864,12 @@ async function renderGrocery() {
     <section class="grocery-panel">
       <div class="grocery-add">
         <input id="grocery-title" placeholder="Add grocery item… e.g. walmart 2 paper towels" autofocus>
-        <button id="grocery-add" aria-label="Add grocery item"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <div class="grocery-add-btns">
+          <button type="button" id="grocery-voice-btn" class="grocery-voice-btn" title="Speak to add items">🎤</button>
+          <button type="button" id="grocery-scan-btn" class="grocery-voice-btn" title="Scan barcode or product photo">📷</button>
+          <input type="file" id="grocery-scan-input" accept="image/*" capture="environment" style="display:none">
+          <button id="grocery-add" aria-label="Add grocery item"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        </div>
       </div>
       ${recentItems.length ? recentGroceryHtml(recentItems) : ''}
       <div class="grocery-actions">
@@ -1778,6 +1881,8 @@ async function renderGrocery() {
     ${items.length ? Object.entries(grouped).map(([category, group]) => groceryGroupHtml(category, group)).join('') : '<div class="empty-state">Grocery list is empty. Add milk, bananas, or walmart 2 paper towels.</div>'}`;
   $('#grocery-add').onclick = addGroceryFromInput;
   $('#grocery-title').addEventListener('keydown', e => { if (e.key === 'Enter') addGroceryFromInput(); });
+  setupGroceryVoiceInput();
+  setupGroceryScanInput();
   $('#clear-grocery').onclick = async () => { await api('/api/grocery/clear-checked', { method: 'POST' }); renderGrocery(); };
   $('#copy-grocery').onclick = async () => {
     const text = $('#grocery-copy').value;

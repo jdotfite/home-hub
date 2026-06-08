@@ -2624,6 +2624,10 @@ body[data-view="documents"] .fab-add::after { content: 'Add task'; }
 .work-voice-btn:hover { background: rgba(255,214,10,.08); border-color: var(--accent); color: var(--accent); }
 .work-voice-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .work-voice-btn.recording { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,.08); }
+.grocery-add-btns { display: flex; gap: 8px; }
+.grocery-voice-btn { background: #171821; border: 1px solid var(--border); border-radius: 12px; padding: 10px 13px; font-size: 15px; cursor: pointer; color: var(--muted); transition: background .15s, border-color .15s; flex-shrink: 0; }
+.grocery-voice-btn:hover { background: rgba(255,214,10,.08); border-color: var(--accent); }
+.grocery-voice-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Earnings bar chart */
 .work-chart-section h4 { margin: 0 0 10px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .work-chart-scroll { overflow-x: auto; padding-bottom: 4px; }
