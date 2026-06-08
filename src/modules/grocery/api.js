@@ -1,4 +1,5 @@
 import { createGroceryItem, listGroceryItems, listRecentGroceryItems, readdGroceryItem, updateGroceryItem, clearCheckedGroceryItems, deleteGroceryItem, quickAdd } from './data.js';
+import { readStore } from '../../db.js';
 
 export function registerGroceryRoutes(app) {
   app.get('/api/grocery', async (req, res, next) => {
@@ -33,7 +34,6 @@ export function registerGroceryRoutes(app) {
     try {
       const q = String(req.query.q || '').trim().toLowerCase();
       if (q.length < 2) return res.json({ suggestions: [] });
-      const { readStore } = await import('../../db.js');
       const store = await readStore();
       const seen = new Map();
       for (const item of (store.groceryItems || [])) {

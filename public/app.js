@@ -1851,7 +1851,7 @@ async function renderGrocery() {
   setActiveNav();
   setBodyView('grocery');
   const [{ items }, { items: recentItems }] = await Promise.all([
-    api('/api/grocery'),
+    api('/api/grocery?checked=false'),
     api('/api/grocery/recent?limit=8'),
   ]);
   const grouped = items.reduce((acc, item) => {
@@ -2040,7 +2040,8 @@ async function addGroceryFromInput() {
   if (!text) return;
   const suggestion = _grocerySuggestion;
   _grocerySuggestion = null;
-  $('#grocery-suggestions').hidden = true;
+  const suggestEl = $('#grocery-suggestions');
+  if (suggestEl) suggestEl.hidden = true;
   if (suggestion && suggestion.title === text) {
     await api('/api/grocery', { method: 'POST', body: JSON.stringify({
       title: suggestion.title,
