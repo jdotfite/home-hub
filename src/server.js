@@ -29,7 +29,13 @@ export function createApp() {
   app.get('/login', loginPage);
   app.get(appPageRoutes, requirePageAuth, page());
 
-  app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  app.get('/api/health', (_req, res) => res.json({
+    ok: true,
+    storage: process.env.KV_REST_API_URL ? 'kv' : process.env.DATABASE_URL ? 'postgres' : 'file',
+    kvUrl: process.env.KV_REST_API_URL ? process.env.KV_REST_API_URL.slice(0, 30) + '…' : null,
+    dbUrl: process.env.DATABASE_URL ? process.env.DATABASE_URL.slice(0, 20) + '…' : null,
+    postgresUrl: process.env.POSTGRES_URL ? process.env.POSTGRES_URL.slice(0, 20) + '…' : null,
+  }));
   app.get('/api/auth/status', authStatus);
   app.post('/api/auth/login', login);
   app.post('/api/auth/profile-login', profileLogin);
