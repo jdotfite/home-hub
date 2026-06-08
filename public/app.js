@@ -5,7 +5,7 @@ let draggedId = null;
 let quickReaddDeleteMode = false;
 let activeProfile = null;
 let activeModules = [];
-const APP_ROUTES = new Set(['/home', '/today', '/future', '/grocery', '/calendar', '/documents', '/work', '/chat', '/settings', '/done', '/projects', '/inbox']);
+const APP_ROUTES = new Set(['/home', '/today', '/future', '/grocery', '/calendar', '/documents', '/work', '/chat', '/settings', '/profile', '/done', '/projects', '/inbox']);
 
 function todayString() { return new Date().toISOString().slice(0, 10); }
 function appRoutePath(pathname) { return pathname === '/' ? '/home' : pathname; }
@@ -21,6 +21,7 @@ function routeView() {
   if (path === '/work') return { key: 'work', title: 'Work', work: true };
   if (path === '/chat') return { key: 'chat', title: 'Chat', chat: true };
   if (path === '/settings') return { key: 'settings', title: 'Settings', settings: true };
+  if (path === '/profile') return { key: 'profile', title: 'Profile', profile: true };
   if (path === '/done') return { key: 'done', title: 'Done', subtitle: 'Completed tasks.', query: 'view=done' };
   if (path === '/projects') return { key: 'projects', title: 'Projects', projects: true };
   return { key: 'inbox', title: 'Inbox', subtitle: 'Unsorted tasks waiting to be clarified or scheduled.', query: 'view=inbox', filters: true };
@@ -50,6 +51,7 @@ async function render() {
   if (view.work) return renderWork();
   if (view.chat) return renderChat();
   if (view.settings) return renderSettings();
+  if (view.profile) return renderProfileSettings();
   if (view.projects) return renderProjects();
   if (view.grocery) return renderGrocery();
 
@@ -1907,59 +1909,67 @@ async function loadProfileChrome() {
   const mobileProfileBtn = document.getElementById('mobile-profile-btn');
   if (mobileProfileBtn && activeProfile) {
     mobileProfileBtn.innerHTML = profileAvatarHtml(activeProfile, 30);
-    mobileProfileBtn.onclick = openProfileSettingsSheet;
+    mobileProfileBtn.onclick = () => navigateTo('/profile');
   }
 }
 
-function openProfileSettingsSheet() {
-  let sheet = document.getElementById('profile-settings-sheet');
-  if (!sheet) {
-    sheet = document.createElement('div');
-    sheet.id = 'profile-settings-sheet';
-    sheet.className = 'profile-settings-sheet';
-    document.body.appendChild(sheet);
-  }
-  sheet.innerHTML = `
-    <div class="pss-backdrop"></div>
-    <div class="pss-panel">
-      <div class="pss-header">
-        <div class="pss-avatar-wrap" id="pss-avatar-wrap">${profileAvatarHtml(activeProfile, 60)}</div>
-        <div class="pss-info">
-          <strong>${escapeHtml(activeProfile?.name || '')}</strong>
-          <small>Active profile</small>
-        </div>
-        <button type="button" class="pss-close" aria-label="Close">✕</button>
-      </div>
-      <div class="pss-body">
-        <label class="pss-upload-btn">
-          Change avatar
-          <input type="file" accept="image/*" id="pss-avatar-file" style="display:none">
+async function renderProfileSettings() {
+  setActiveNav();
+  setBodyView('profile');
+  const { profiles } = await api('/api/profiles').catch(() => ({ profiles: [] }));
+  const me = activeProfile;
+  content.innerHTML = `
+    <div class="pspage">
+      <div class="pspage-hero">
+        <div class="pspage-avatar-ring" id="pspage-avatar-ring" style="background:${escapeAttribute(me?.color || '#ffd60a')}">${profileAvatarHtml(me, 72)}</div>
+        <h2 class="pspage-name">${escapeHtml(me?.name || '')}</h2>
+        <label class="pspage-change-photo" role="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Change photo
+          <input type="file" accept="image/*" id="pspage-file" style="display:none">
         </label>
-        <button type="button" class="pss-settings-link">Go to settings →</button>
+        ${me?.avatar ? `<button class="pspage-remove-photo" type="button">Remove photo</button>` : ''}
       </div>
+      <section class="pspage-section">
+        <h3>Switch Profile</h3>
+        <div class="pspage-profile-list">
+          ${profiles.map(p => `
+            <button class="pspage-profile-row${p.id === me?.id ? ' is-active' : ''}" data-id="${escapeAttribute(p.id)}" type="button">
+              <div class="pspage-profile-av" style="background:${escapeAttribute(p.color || '#ffd60a')}">${profileAvatarHtml(p, 36)}</div>
+              <span class="pspage-profile-name">${escapeHtml(p.name)}</span>
+              ${p.id === me?.id ? '<span class="pspage-active-chip">Active</span>' : '<span class="pspage-switch-label">Switch →</span>'}
+            </button>`).join('')}
+        </div>
+      </section>
     </div>`;
-  sheet.classList.add('open');
-  const close = () => sheet.classList.remove('open');
-  sheet.querySelector('.pss-backdrop').onclick = close;
-  sheet.querySelector('.pss-close').onclick = close;
-  sheet.querySelector('.pss-settings-link').onclick = () => { close(); navigateTo('/settings'); };
-  sheet.querySelector('#pss-avatar-file').onchange = async e => {
+
+  $('#pspage-file').onchange = async e => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = async ev => {
       try {
-        await api(`/api/profiles/${encodeURIComponent(activeProfile.id)}/avatar`, {
-          method: 'PATCH',
-          body: JSON.stringify({ avatar: ev.target.result }),
-        });
+        await api(`/api/profiles/${encodeURIComponent(me.id)}/avatar`, { method: 'PATCH', body: JSON.stringify({ avatar: ev.target.result }) });
         await loadProfileChrome();
-        const wrap = document.getElementById('pss-avatar-wrap');
-        if (wrap) wrap.innerHTML = profileAvatarHtml(activeProfile, 60);
+        renderProfileSettings();
       } catch (err) { alert('Upload failed. ' + (err?.message || '')); }
     };
     reader.readAsDataURL(file);
   };
+
+  content.querySelector('.pspage-remove-photo')?.addEventListener('click', async () => {
+    await api(`/api/profiles/${encodeURIComponent(me.id)}/avatar`, { method: 'PATCH', body: JSON.stringify({ avatar: null }) });
+    await loadProfileChrome();
+    renderProfileSettings();
+  });
+
+  content.querySelectorAll('.pspage-profile-row:not(.is-active)').forEach(btn => {
+    btn.onclick = async () => {
+      await api('/api/profile/select', { method: 'POST', body: JSON.stringify({ profileId: btn.dataset.id }) });
+      await loadProfileChrome();
+      navigateTo('/home');
+    };
+  });
 }
 
 function moduleLinks(module) {

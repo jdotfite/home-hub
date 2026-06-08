@@ -18,7 +18,7 @@ import { registerProfileRoutes } from './profiles.js';
 
 export function createApp() {
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: '2mb' }));
   app.use(express.static('public', { index: false }));
 
   const indexHtml = fileURLToPath(new URL('../public/index.html', import.meta.url));
