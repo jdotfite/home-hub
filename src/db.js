@@ -13,6 +13,7 @@ function postgresConnectionString() {
 }
 
 function postgresEnabled() {
+  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) return false;
   return Boolean(postgresConnectionString());
 }
 
