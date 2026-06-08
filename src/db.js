@@ -82,10 +82,13 @@ function kvEnabled() {
 
 async function kvRequest(command, ...args) {
   const base = process.env.KV_REST_API_URL.replace(/\/$/, '');
-  const path = [command, ...args.map(arg => encodeURIComponent(arg))].join('/');
-  const res = await fetch(`${base}/${path}`, {
+  const res = await fetch(base, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}` },
+    headers: {
+      Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify([command.toUpperCase(), ...args]),
   });
   if (!res.ok) throw new Error(`KV ${command} failed: ${res.status} ${await res.text()}`);
   return res.json();
