@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 import { nowIso, readStore, todayIsoDate, writeStore } from './db.js';
 import { createTask } from './tasks.js';
+import { normalizeGroceryItem, normalizeGroceryItemsBatch } from './voiceParse.js';
 
 function normalizeItem(item) {
   if (!item) return null;
@@ -34,35 +35,35 @@ function parseQuantity(title) {
   return { quantity: words[match[1].toLowerCase()] || match[1], title: match[2].trim() };
 }
 
-function guessCategory(title) {
-  const s = title.toLowerCase();
-  if (/banana|apple|lettuce|tomato|onion|potato|berry|berries|produce|carrot|spinach|broccoli|pepper|mushroom|avocado|orange|grape|lemon|lime|celery|cucumber|zucchini|garlic|kale|corn|peas?$/.test(s)) return 'produce';
-  if (/wrap|tortilla|bread|pita|naan|biscuit|bagel|croissant|\broll\b|\bbun\b|flatbread/.test(s)) return 'bakery';
-  if (/milk|cheese|yogurt|butter|cream|egg/.test(s)) return 'dairy';
-  if (/chicken|beef|pork|turkey|salmon|tuna|shrimp|steak|ground |sausage|bacon|\bham\b|lamb|tilapia|cod|deli|lunch meat|hot dog/.test(s)) return 'meat';
-  if (/pasta|rice|noodle|oatmeal|\boat\b|cereal|flour|sugar|\bsalt\b|\boil\b|vinegar|sauce|ketchup|mustard|mayo|salsa|dressing|broth|canned|lentil|quinoa|chip|cracker|cookie|popcorn|pretzel|granola|candy|chocolate/.test(s)) return 'pantry';
-  if (/water|juice|soda|coffee|\btea\b|lemonade|gatorade|energy drink|wine|beer|kombucha/.test(s)) return 'beverages';
-  if (/nugget|pizza|frozen|ice cream|waffle|burrito|tater tot/.test(s)) return 'frozen';
-  if (/towel|toilet|soap|detergent|trash bag|garbage bag|foil|sponge|bleach|lysol|laundry|dishwasher/.test(s)) return 'household';
-  if (/shampoo|toothpaste|toothbrush|deodorant|razor|lotion|sunscreen|vitamin|bandage|tampon|feminine/.test(s)) return 'personal care';
-  if (/dog|cat|pet|kibble|litter/.test(s)) return 'pets';
-  return 'uncategorized';
-}
 
 export async function createGroceryItem(input) {
   const parsed = parseQuantity(input.title || '');
-  const title = String(parsed.title || '').trim();
+  let title = String(parsed.title || '').trim();
   if (!title) throw Object.assign(new Error('Grocery item title is required'), { status: 400 });
+  const source = String(input.source || 'app').trim().toLowerCase() || 'app';
+  let category = String(input.category || '').trim().toLowerCase();
+
+  // Normalize title + assign category via OpenAI for manually typed items.
+  // Voice/scan items already come pre-processed; readd items are already clean.
+  if (source === 'app' && !input.category) {
+    try {
+      const result = await normalizeGroceryItem(title);
+      title = result.normalized || title;
+      category = result.category || 'uncategorized';
+    } catch { category = 'uncategorized'; }
+  }
+  if (!category) category = 'uncategorized';
+
   const timestamp = nowIso();
   const item = {
     id: nanoid(12),
     title,
     quantity: String(input.quantity || parsed.quantity || '').trim(),
     store: String(input.store || 'walmart').trim().toLowerCase() || 'walmart',
-    category: String(input.category || guessCategory(title)).trim().toLowerCase() || 'uncategorized',
+    category,
     checked: Boolean(input.checked),
     addedBy: String(input.addedBy || '').trim(),
-    source: String(input.source || 'app').trim().toLowerCase() || 'app',
+    source,
     createdAt: timestamp,
     updatedAt: timestamp,
     checkedAt: input.checked ? timestamp : null,
@@ -127,18 +128,42 @@ export async function updateGroceryItem(id, patch) {
   return normalizeItem(item);
 }
 
-export async function recategorizeGroceryItems() {
+export async function normalizeAllGroceryItems() {
   const store = await readStore();
+  const items = ensureGrocery(store).filter(i => i.title);
+  if (!items.length) return { changed: 0, total: 0 };
+
+  const CHUNK = 20;
+  const results = [];
+  for (let i = 0; i < items.length; i += CHUNK) {
+    const chunk = items.slice(i, i + CHUNK);
+    const normalized = await normalizeGroceryItemsBatch(chunk.map(it => it.title));
+    results.push(...normalized);
+  }
+
   let changed = 0;
-  for (const item of ensureGrocery(store)) {
-    const guessed = guessCategory(item.title || '');
-    if (guessed !== 'uncategorized' && item.category !== guessed) {
-      item.category = guessed;
+  for (let i = 0; i < items.length; i++) {
+    const { normalized: normTitle, category } = results[i];
+    if ((normTitle && normTitle !== items[i].title) || (category && category !== items[i].category)) {
+      if (normTitle) items[i].title = normTitle;
+      if (category) items[i].category = category;
       changed++;
     }
   }
   if (changed) await writeStore(store);
-  return { changed };
+  return { changed, total: items.length };
+}
+
+export async function deleteGroceryHistory(title) {
+  const store = await readStore();
+  const key = String(title || '').toLowerCase();
+  const before = ensureGrocery(store).length;
+  store.groceryItems = store.groceryItems.filter(i =>
+    !(i.checked && String(i.title || '').toLowerCase() === key)
+  );
+  const removed = before - store.groceryItems.length;
+  if (removed) await writeStore(store);
+  return { removed };
 }
 
 export async function clearCheckedGroceryItems() {

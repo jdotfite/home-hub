@@ -23,6 +23,46 @@ category must be one of: produce, bakery, dairy, meat, frozen, pantry, beverages
 bakery = bread, wraps, tortillas, rolls, bagels. pantry = canned goods, pasta, rice, condiments, snacks, chips.`,
 };
 
+const NORMALIZE_SYSTEM = `Convert grocery item titles to clean, concise generic names.
+Rules:
+- Remove brand names (bettergoods, Marketside, Great Value, Kirkland, store brands, etc.)
+- Remove package size/count (Half Gallon, 12oz, 6 Count, 32oz, Pack, etc.)
+- Remove leading/trailing commas or filler words
+- Keep flavor and variety descriptors (Vanilla, Unsweetened, Low-Fat, Sharp, etc.)
+- Short simple titles 3 words or fewer → keep as-is, just title-case them
+- Use natural English order
+
+Also assign category — one of: produce, bakery, dairy, meat, frozen, pantry, beverages, household, personal care, pets, uncategorized
+(bakery = bread/wraps/tortillas/rolls/buns; pantry = canned goods/dry goods/condiments/snacks/chips)
+
+Return JSON: {"items":[{"normalized":"...","category":"..."}]}
+One entry per numbered input line, in the same order.`;
+
+export async function normalizeGroceryItemsBatch(titles) {
+  if (!titles.length) return [];
+  const numbered = titles.map((t, i) => `${i + 1}. ${t}`).join('\n');
+  const result = await getClient().chat.completions.create({
+    model: 'gpt-4o-mini',
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: NORMALIZE_SYSTEM },
+      { role: 'user', content: numbered },
+    ],
+    max_tokens: 60 * titles.length + 60,
+  });
+  const parsed = JSON.parse(result.choices[0].message.content);
+  const items = Array.isArray(parsed.items) ? parsed.items : Object.values(parsed)[0] ?? [];
+  return titles.map((t, i) => ({
+    normalized: String(items[i]?.normalized || t).trim() || t,
+    category: String(items[i]?.category || 'uncategorized').trim().toLowerCase(),
+  }));
+}
+
+export async function normalizeGroceryItem(title) {
+  const [result] = await normalizeGroceryItemsBatch([title]);
+  return result;
+}
+
 export async function voiceParse(transcript, schema) {
   const system = SYSTEM_PROMPTS[schema];
   if (!system) throw Object.assign(new Error('Unknown schema'), { status: 400 });

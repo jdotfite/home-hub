@@ -2,14 +2,6 @@ const $ = sel => document.querySelector(sel);
 const content = $('#content');
 let activeFilter = 'all';
 let draggedId = null;
-let quickReaddDeleteMode = false;
-document.addEventListener('pointerdown', e => {
-  if (!quickReaddDeleteMode) return;
-  if (!e.target.closest('.recent-grocery')) {
-    quickReaddDeleteMode = false;
-    document.querySelector('.recent-grocery')?.classList.remove('quick-readd-delete-mode');
-  }
-}, true);
 let activeProfile = null;
 let activeModules = [];
 const APP_ROUTES = new Set(['/home', '/today', '/future', '/grocery', '/calendar', '/documents', '/work', '/chat', '/settings', '/profile', '/done', '/projects', '/inbox']);
@@ -1943,10 +1935,7 @@ function chatMessageHtml(msg, threadId) {
 async function renderGrocery() {
   setActiveNav();
   setBodyView('grocery');
-  const [{ items }, { items: recentItems }] = await Promise.all([
-    api('/api/grocery'),
-    api('/api/grocery/recent?limit=8'),
-  ]);
+  const { items } = await api('/api/grocery');
   const grouped = items.reduce((acc, item) => {
     (acc[item.category] ||= []).push(item);
     return acc;
@@ -1966,15 +1955,12 @@ async function renderGrocery() {
       <input type="file" id="grocery-scan-input" accept="image/*" capture="environment" style="display:none">
       <div id="grocery-suggestions" class="grocery-suggestions" hidden></div>
     </div>
-    <section class="grocery-panel">
-      ${recentItems.length ? recentGroceryHtml(recentItems) : ''}
-      <div class="grocery-actions">
-        <button id="copy-grocery" class="grocery-action-btn" title="Copy list to clipboard" aria-label="Copy list"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</button>
-        <button id="clear-grocery" class="grocery-action-btn" title="Clear all checked items" aria-label="Clear checked"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Clear</button>
-        <button id="recategorize-grocery" class="grocery-action-btn" title="Re-run category detection on all items" aria-label="Fix categories"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Fix categories</button>
-      </div>
-      <textarea id="grocery-copy" readonly>${escapeHtml(listText)}</textarea>
-    </section>
+    <div class="grocery-actions">
+      <button id="copy-grocery" class="grocery-action-btn" title="Copy list to clipboard" aria-label="Copy list"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</button>
+      <button id="clear-grocery" class="grocery-action-btn" title="Clear all checked items" aria-label="Clear checked"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Clear</button>
+      <button id="normalize-grocery" class="grocery-action-btn" title="Clean up all item names and categories using AI" aria-label="Clean up names"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Clean up</button>
+      <textarea id="grocery-copy" readonly style="display:none">${escapeHtml(listText)}</textarea>
+    </div>
     ${items.length ? Object.entries(grouped).map(([category, group]) => groceryGroupHtml(category, group)).join('') : '<div class="empty-state">Grocery list is empty. Add milk, bananas, or walmart 2 paper towels.</div>'}
     <div id="grocery-kebab-menu" class="grocery-kebab-menu" hidden>
       <a id="grocery-kebab-search" class="grocery-kebab-item" target="_blank" rel="noopener">
@@ -1999,12 +1985,17 @@ async function renderGrocery() {
   setupGroceryScanInput();
   setupGroceryAutocomplete();
   $('#clear-grocery').onclick = async () => { await api('/api/grocery/clear-checked', { method: 'POST' }); renderGrocery(); };
-  $('#recategorize-grocery').onclick = async () => {
-    const btn = $('#recategorize-grocery');
-    btn.textContent = '…';
-    const { changed } = await api('/api/grocery/recategorize', { method: 'POST' });
-    renderGrocery();
-    if (!changed) { btn.textContent = 'All good'; setTimeout(() => renderGrocery(), 1500); }
+  $('#normalize-grocery').onclick = async () => {
+    const btn = $('#normalize-grocery');
+    const orig = btn.innerHTML;
+    btn.textContent = 'Cleaning…';
+    btn.disabled = true;
+    try {
+      const { changed, total } = await api('/api/grocery/normalize-all', { method: 'POST' });
+      renderGrocery();
+      // brief flash of result before re-render clears it
+      if (!changed) console.info(`Grocery normalize: all ${total} items already clean`);
+    } catch { btn.innerHTML = orig; btn.disabled = false; }
   };
   $('#copy-grocery').onclick = async () => {
     const text = $('#grocery-copy').value;
@@ -2012,17 +2003,6 @@ async function renderGrocery() {
     $('#copy-grocery').textContent = 'Copied!';
     setTimeout(() => renderGrocery(), 1200);
   };
-  document.querySelectorAll('.recent-grocery-chip').forEach(btn => btn.onclick = async e => {
-    if (quickReaddDeleteMode) return;
-    await api(`/api/grocery/${e.currentTarget.dataset.id}/readd`, { method: 'POST' });
-    renderGrocery();
-  });
-  document.querySelectorAll('.recent-grocery-delete').forEach(btn => btn.onclick = async e => {
-    e.stopPropagation();
-    await api(`/api/grocery/${e.currentTarget.dataset.id}`, { method: 'DELETE' });
-    renderGrocery();
-  });
-  bindRecentGrocerySwipeDelete();
   document.querySelectorAll('.grocery-check').forEach(cb => cb.onchange = async e => {
     await api(`/api/grocery/${e.target.closest('.grocery-item').dataset.id}`, { method: 'PATCH', body: JSON.stringify({ checked: e.target.checked }) });
     renderGrocery();
@@ -2048,10 +2028,6 @@ async function renderGrocery() {
     renderGrocery();
   });
   document.addEventListener('click', () => { if (kebabMenu) kebabMenu.hidden = true; });
-  $('#clear-readd-all')?.addEventListener('click', async () => {
-    await Promise.all(recentItems.map(item => api(`/api/grocery/${item.id}`, { method: 'DELETE' })));
-    renderGrocery();
-  });
   $('#grocery-voice-btn')?.addEventListener('click', () => startGroceryVoice($('#grocery-voice-btn')));
   document.querySelectorAll('.qty-plus').forEach(btn => btn.onclick = async e => {
     e.stopPropagation();
@@ -2080,69 +2056,6 @@ async function renderGrocery() {
   });
 }
 
-function recentGroceryHtml(items) {
-  const pills = items.map(item => `<span class="recent-grocery-pill" data-id="${escapeAttribute(item.id)}"><button type="button" class="recent-grocery-chip" data-id="${escapeAttribute(item.id)}"><span class="readd-plus">+</span> ${escapeHtml(item.quantity ? item.quantity + ' ' : '')}${escapeHtml(item.title)}</button><button type="button" class="recent-grocery-delete" data-id="${escapeAttribute(item.id)}" aria-label="Remove from quick re-add">×</button></span>`).join('');
-  return `<div class="recent-grocery ${quickReaddDeleteMode ? 'quick-readd-delete-mode' : ''}">
-    <div class="recent-grocery-header">
-      <div class="recent-grocery-title-group">
-        <span class="recent-grocery-title"><svg width="13" height="13" viewBox="0 0 24 24" fill="#ffd60a" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Quick re-add</span>
-        <span class="recent-grocery-subtitle">Tap a frequently added item to re-add it to your list.</span>
-      </div>
-      <button type="button" class="recent-grocery-clear-all" id="clear-readd-all">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-        Clear all
-      </button>
-    </div>
-    <div class="recent-grocery-pills">${pills}</div>
-  </div>`;
-}
-
-function bindRecentGrocerySwipeDelete() {
-  document.querySelectorAll('.recent-grocery-pill').forEach(pill => {
-    let startX = 0;
-    let currentX = 0;
-    let dragging = false;
-    let holdTimer = null;
-    const reset = () => {
-      clearTimeout(holdTimer);
-      dragging = false;
-      pill.classList.remove('swiping');
-      pill.style.transform = '';
-    };
-    pill.addEventListener('pointerdown', e => {
-      if (e.target.closest('.recent-grocery-delete')) return;
-      startX = e.clientX;
-      currentX = 0;
-      dragging = true;
-      pill.classList.add('swiping');
-      pill.setPointerCapture?.(e.pointerId);
-      holdTimer = setTimeout(() => {
-        quickReaddDeleteMode = true;
-        document.querySelector('.recent-grocery')?.classList.add('quick-readd-delete-mode');
-        if (navigator.vibrate) navigator.vibrate(12);
-      }, 450);
-    });
-    pill.addEventListener('pointermove', e => {
-      if (!dragging) return;
-      currentX = Math.min(0, e.clientX - startX);
-      if (Math.abs(currentX) > 10) clearTimeout(holdTimer);
-      if (Math.abs(currentX) < 6) return;
-      pill.style.transform = `translateX(${Math.max(currentX, -90)}px)`;
-    });
-    pill.addEventListener('pointerup', async e => {
-      if (!dragging) return;
-      clearTimeout(holdTimer);
-      pill.releasePointerCapture?.(e.pointerId);
-      if (currentX < -72) {
-        await api(`/api/grocery/${pill.dataset.id}`, { method: 'DELETE' });
-        renderGrocery();
-        return;
-      }
-      reset();
-    });
-    pill.addEventListener('pointercancel', reset);
-  });
-}
 
 const GROCERY_CAT_EMOJI = { dairy: '🥛', produce: '🥦', meat: '🥩', frozen: '❄️', beverages: '🥤', snacks: '🍿', household: '🏠', 'personal care': '🧴', pets: '🐾', pantry: '🥫', bakery: '🍞', uncategorized: '🛒' };
 
@@ -2201,19 +2114,33 @@ function setupGroceryAutocomplete() {
       if (!suggestions.length) { dropdown.hidden = true; return; }
       dropdown.innerHTML = suggestions.map((s, i) =>
         `<div class="grocery-suggestion" data-idx="${i}" role="option">
-          <span class="gs-title">${escapeHtml(s.title)}</span>
-          <span class="gs-cat">${escapeHtml(s.category)}</span>
+          <span class="gs-body">
+            <span class="gs-title">${escapeHtml(s.title)}</span>
+            <span class="gs-cat">${escapeHtml(s.category)}</span>
+          </span>
+          <button type="button" class="gs-remove" data-title="${escapeAttribute(s.title)}" tabindex="-1" title="Remove from history">×</button>
         </div>`
       ).join('');
       dropdown._suggestions = suggestions;
       dropdown.hidden = false;
       dropdown.querySelectorAll('.grocery-suggestion').forEach(el => {
         el.onmousedown = e => {
+          if (e.target.closest('.gs-remove')) return;
           e.preventDefault();
           const s = suggestions[Number(el.dataset.idx)];
           input.value = s.title;
           _grocerySuggestion = s;
           dropdown.hidden = true;
+        };
+      });
+      dropdown.querySelectorAll('.gs-remove').forEach(btn => {
+        btn.onmousedown = async e => {
+          e.preventDefault();
+          e.stopPropagation();
+          const title = btn.dataset.title;
+          btn.closest('.grocery-suggestion').remove();
+          if (!dropdown.querySelector('.grocery-suggestion')) dropdown.hidden = true;
+          await api(`/api/grocery/history?title=${encodeURIComponent(title)}`, { method: 'DELETE' });
         };
       });
     } catch { dropdown.hidden = true; }
