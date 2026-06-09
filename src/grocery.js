@@ -127,6 +127,20 @@ export async function updateGroceryItem(id, patch) {
   return normalizeItem(item);
 }
 
+export async function recategorizeGroceryItems() {
+  const store = await readStore();
+  let changed = 0;
+  for (const item of ensureGrocery(store)) {
+    const guessed = guessCategory(item.title || '');
+    if (guessed !== 'uncategorized' && item.category !== guessed) {
+      item.category = guessed;
+      changed++;
+    }
+  }
+  if (changed) await writeStore(store);
+  return { changed };
+}
+
 export async function clearCheckedGroceryItems() {
   const store = await readStore();
   const before = ensureGrocery(store).length;

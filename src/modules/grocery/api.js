@@ -1,4 +1,4 @@
-import { createGroceryItem, listGroceryItems, listRecentGroceryItems, readdGroceryItem, updateGroceryItem, clearCheckedGroceryItems, deleteGroceryItem, quickAdd } from './data.js';
+import { createGroceryItem, listGroceryItems, listRecentGroceryItems, readdGroceryItem, updateGroceryItem, clearCheckedGroceryItems, deleteGroceryItem, quickAdd, recategorizeGroceryItems } from './data.js';
 import { readStore } from '../../db.js';
 
 export function registerGroceryRoutes(app) {
@@ -28,6 +28,10 @@ export function registerGroceryRoutes(app) {
 
   app.post('/api/grocery/clear-checked', async (_req, res, next) => {
     try { res.json(await clearCheckedGroceryItems()); } catch (err) { next(err); }
+  });
+
+  app.post('/api/grocery/recategorize', async (_req, res, next) => {
+    try { res.json(await recategorizeGroceryItems()); } catch (err) { next(err); }
   });
 
   app.get('/api/grocery/suggest', async (req, res, next) => {

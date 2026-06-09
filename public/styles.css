@@ -3220,6 +3220,8 @@ body[data-view="grocery"] .grocery-panel {
   transition: background .1s;
 }
 .grocery-kebab-item:hover { background: #333; }
+.grocery-kebab-item--danger { background: none; border: none; width: 100%; text-align: left; font-family: inherit; font-size: 13px; color: #e05c5c; cursor: pointer; }
+.grocery-kebab-item--danger:hover { background: rgba(224,92,92,.12); color: #ff7070; }
 
 /* Hide textarea on desktop grocery view */
 body[data-view="grocery"] #grocery-copy { display: none; }
@@ -3382,11 +3384,11 @@ body[data-view="grocery"] #grocery-copy { display: none; }
   body[data-view="grocery"] .grocery-item input[type="checkbox"]:checked::after {
     content: '';
     position: absolute;
-    left: 5px; top: 2px;
+    left: 50%; top: 45%;
     width: 5px; height: 9px;
     border: 2px solid #111;
     border-top: none; border-left: none;
-    transform: rotate(45deg);
+    transform: translate(-50%, -50%) rotate(45deg);
   }
 
   /* Compact action buttons — icon + short label, right-aligned */

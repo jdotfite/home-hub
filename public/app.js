@@ -1944,7 +1944,7 @@ async function renderGrocery() {
   setActiveNav();
   setBodyView('grocery');
   const [{ items }, { items: recentItems }] = await Promise.all([
-    api('/api/grocery?checked=false'),
+    api('/api/grocery'),
     api('/api/grocery/recent?limit=8'),
   ]);
   const grouped = items.reduce((acc, item) => {
@@ -1971,6 +1971,7 @@ async function renderGrocery() {
       <div class="grocery-actions">
         <button id="copy-grocery" class="grocery-action-btn" title="Copy list to clipboard" aria-label="Copy list"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</button>
         <button id="clear-grocery" class="grocery-action-btn" title="Clear all checked items" aria-label="Clear checked"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Clear</button>
+        <button id="recategorize-grocery" class="grocery-action-btn" title="Re-run category detection on all items" aria-label="Fix categories"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Fix categories</button>
       </div>
       <textarea id="grocery-copy" readonly>${escapeHtml(listText)}</textarea>
     </section>
@@ -1980,6 +1981,10 @@ async function renderGrocery() {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         Search Walmart
       </a>
+      <button type="button" id="grocery-kebab-delete" class="grocery-kebab-item grocery-kebab-item--danger">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Remove item
+      </button>
     </div>
     <div class="grocery-fab-wrap">
       <p class="grocery-fab-hint">Tap to type · Hold for voice</p>
@@ -1994,6 +1999,13 @@ async function renderGrocery() {
   setupGroceryScanInput();
   setupGroceryAutocomplete();
   $('#clear-grocery').onclick = async () => { await api('/api/grocery/clear-checked', { method: 'POST' }); renderGrocery(); };
+  $('#recategorize-grocery').onclick = async () => {
+    const btn = $('#recategorize-grocery');
+    btn.textContent = '…';
+    const { changed } = await api('/api/grocery/recategorize', { method: 'POST' });
+    renderGrocery();
+    if (!changed) { btn.textContent = 'All good'; setTimeout(() => renderGrocery(), 1500); }
+  };
   $('#copy-grocery').onclick = async () => {
     const text = $('#grocery-copy').value;
     if (navigator.clipboard) await navigator.clipboard.writeText(text);
@@ -2016,9 +2028,11 @@ async function renderGrocery() {
     renderGrocery();
   });
   const kebabMenu = $('#grocery-kebab-menu');
+  let kebabItemId = null;
   document.querySelectorAll('.grocery-item-menu-btn').forEach(btn => {
     btn.onclick = e => {
       e.stopPropagation();
+      kebabItemId = btn.dataset.id;
       const searchUrl = `https://www.walmart.com/search?${new URLSearchParams({ q: btn.dataset.query, facet: 'fulfillment_method_in_store:In-store' })}`;
       $('#grocery-kebab-search').href = searchUrl;
       const rect = btn.getBoundingClientRect();
@@ -2026,6 +2040,12 @@ async function renderGrocery() {
       kebabMenu.style.right = `${window.innerWidth - rect.right}px`;
       kebabMenu.hidden = false;
     };
+  });
+  $('#grocery-kebab-delete')?.addEventListener('click', async () => {
+    if (!kebabItemId) return;
+    kebabMenu.hidden = true;
+    await api(`/api/grocery/${kebabItemId}`, { method: 'DELETE' });
+    renderGrocery();
   });
   document.addEventListener('click', () => { if (kebabMenu) kebabMenu.hidden = true; });
   $('#clear-readd-all')?.addEventListener('click', async () => {
