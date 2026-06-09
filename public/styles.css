@@ -1508,7 +1508,7 @@ button:focus-visible,
 /* Grocery PWA focus: on phones this route behaves like a dedicated family shopping app. */
 @media (max-width: 720px) {
   body[data-view="grocery"] main {
-    padding-bottom: 104px;
+    padding-bottom: 120px;
   }
 
   body[data-view="grocery"] .quick-add {
@@ -1777,33 +1777,40 @@ button:focus-visible,
   body[data-view="grocery"] .qty-stepper {
     display: flex;
     align-items: center;
-    background: #1e1e1e;
-    border-radius: 8px;
+    background: #1c1c1c;
+    border: 1px solid #2e2e2e;
+    border-radius: 10px;
+    height: 36px;
     overflow: hidden;
   }
 
   body[data-view="grocery"] .qty-btn {
-    width: 28px;
-    height: 32px;
+    width: 30px;
+    height: 36px;
     border: 0;
     background: transparent;
-    color: #ffd60a;
-    font-size: 18px;
-    font-weight: 300;
+    font-size: 17px;
+    font-weight: 400;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    line-height: 0;
+    line-height: 1;
     flex-shrink: 0;
   }
+
+  body[data-view="grocery"] .qty-minus { color: #555; }
+  body[data-view="grocery"] .qty-minus:active { color: #ccc; }
+  body[data-view="grocery"] .qty-plus { color: #ffd60a; }
+  body[data-view="grocery"] .qty-plus:active { color: #fff; }
 
   body[data-view="grocery"] .qty-num {
     min-width: 22px;
     text-align: center;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
-    color: #ccc;
+    color: #d8d8d8;
+    padding: 0 1px;
   }
 
   body[data-view="grocery"] .grocery-secondary-btns {
@@ -1838,6 +1845,108 @@ button:focus-visible,
 
   body[data-view="grocery"] .fab-add::after {
     content: 'Add grocery item';
+  }
+
+  /* Sticky FAB add button */
+  body[data-view="grocery"] .grocery-fab-wrap {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: 0 16px calc(22px + env(safe-area-inset-bottom));
+    background: linear-gradient(transparent, #111 36%);
+    z-index: 20;
+    pointer-events: none;
+  }
+  body[data-view="grocery"] .grocery-fab-wrap > * { pointer-events: auto; }
+  body[data-view="grocery"] .grocery-fab-hint {
+    text-align: center;
+    font-size: 11px;
+    color: #4a4a4a;
+    margin: 0 0 7px;
+    letter-spacing: .03em;
+  }
+  body[data-view="grocery"] .grocery-fab-btn {
+    width: 100%;
+    height: 58px;
+    background: #ffd60a;
+    color: #111;
+    border: 0;
+    border-radius: 16px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    letter-spacing: -.02em;
+  }
+  body[data-view="grocery"] .grocery-fab-btn:active { background: #f0c900; }
+  body[data-view="grocery"] .grocery-fab-btn:disabled { opacity: .65; }
+
+  /* Slide-up add sheet */
+  body[data-view="grocery"] .grocery-add-sheet {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 30;
+    background: #1b1b1b;
+    border-radius: 20px 20px 0 0;
+    border-top: 1px solid #2c2c2c;
+    padding: 14px 16px calc(18px + env(safe-area-inset-bottom));
+    transform: translateY(100%);
+    transition: transform .22s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  body[data-view="grocery"] .grocery-add-sheet.open { transform: translateY(0); }
+
+  body[data-view="grocery"] .grocery-sheet-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+  }
+  body[data-view="grocery"] .grocery-sheet-icon-btn {
+    width: 52px;
+    height: 52px;
+    border: 0;
+    background: #282828;
+    border-radius: 10px;
+    font-size: 21px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  body[data-view="grocery"] .grocery-sheet-submit {
+    width: 52px;
+    height: 52px;
+    border: 0;
+    background: #ffd60a;
+    color: #111;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  body[data-view="grocery"] .grocery-add-sheet #grocery-title {
+    min-height: 52px;
+    border: 0;
+    border-radius: 10px;
+    background: #282828;
+    color: #f7f7f7;
+    font-size: 18px;
+    font-weight: 500;
+    padding: 0 14px;
+    box-shadow: none;
+  }
+  body[data-view="grocery"] .grocery-add-sheet .grocery-suggestions {
+    position: static;
+    border-radius: 10px;
+    margin-top: 8px;
+    border: 1px solid #2e2e2e;
   }
 }
 

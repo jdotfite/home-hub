@@ -1329,6 +1329,92 @@ function resizeImage(file, maxPx) {
   });
 }
 
+function openGrocerySheet() {
+  const sheet = $('#grocery-add-sheet');
+  if (!sheet) return;
+  sheet.classList.add('open');
+  requestAnimationFrame(() => $('#grocery-title')?.focus());
+}
+
+function closeGrocerySheet() {
+  const sheet = $('#grocery-add-sheet');
+  if (!sheet) return;
+  sheet.classList.remove('open');
+  const sugg = $('#grocery-suggestions');
+  if (sugg) sugg.hidden = true;
+}
+
+function startGroceryVoice() {
+  const fab = $('#grocery-fab');
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { openGrocerySheet(); return; }
+  if (navigator.vibrate) navigator.vibrate(14);
+  const originalHTML = fab.innerHTML;
+  fab.textContent = '🔴 Listening…';
+  fab.disabled = true;
+  const rec = new SpeechRecognition();
+  rec.lang = 'en-US';
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  rec.start();
+  let handled = false;
+  rec.onresult = async e => {
+    handled = true;
+    const transcript = e.results[0][0].transcript;
+    fab.textContent = '⏳ Adding…';
+    try {
+      const { items } = await api('/api/voice/parse', { method: 'POST', body: JSON.stringify({ transcript, schema: 'grocery' }) });
+      if (Array.isArray(items) && items.length) {
+        await Promise.all(items.map(item => api('/api/grocery', { method: 'POST', body: JSON.stringify({ ...item, source: 'voice' }) })));
+        fab.innerHTML = originalHTML;
+        fab.disabled = false;
+        renderGrocery();
+        return;
+      }
+    } catch { /* fall through to text input */ }
+    fab.innerHTML = originalHTML;
+    fab.disabled = false;
+    openGrocerySheet();
+    const input = $('#grocery-title');
+    if (input) input.value = transcript;
+  };
+  rec.onerror = () => { fab.innerHTML = originalHTML; fab.disabled = false; openGrocerySheet(); };
+  rec.onend = () => { if (!handled) { fab.innerHTML = originalHTML; fab.disabled = false; } };
+}
+
+function setupGroceryFab() {
+  const fab = $('#grocery-fab');
+  const sheet = $('#grocery-add-sheet');
+  if (!fab) return;
+  let holdTimer = null;
+  let startPos = null;
+  fab.addEventListener('pointerdown', e => {
+    startPos = { x: e.clientX, y: e.clientY };
+    holdTimer = setTimeout(() => {
+      holdTimer = null;
+      startPos = null;
+      startGroceryVoice();
+    }, 520);
+  });
+  fab.addEventListener('pointerup', () => {
+    if (!holdTimer) return;
+    clearTimeout(holdTimer);
+    holdTimer = null;
+    startPos = null;
+    openGrocerySheet();
+  });
+  fab.addEventListener('pointermove', e => {
+    if (!startPos) return;
+    const d = Math.hypot(e.clientX - startPos.x, e.clientY - startPos.y);
+    if (d > 12) { clearTimeout(holdTimer); holdTimer = null; startPos = null; }
+  });
+  fab.addEventListener('pointercancel', () => { clearTimeout(holdTimer); holdTimer = null; startPos = null; });
+  document.addEventListener('pointerdown', e => {
+    if (!sheet?.classList.contains('open')) return;
+    if (!sheet.contains(e.target) && !fab.contains(e.target)) closeGrocerySheet();
+  }, true);
+}
+
 function setupGroceryScanInput() {
   const scanBtn = $('#grocery-scan-btn');
   const scanInput = $('#grocery-scan-input');
@@ -1869,29 +1955,35 @@ async function renderGrocery() {
   const listText = activeItems.map(i => `${i.quantity ? i.quantity + ' ' : ''}${i.title}`).join('\n');
   content.innerHTML = viewHeader('Grocery', 'Fast shared capture for Walmart and household shopping.', false, activeItems.length) + `
     <section class="grocery-panel">
-      <div class="grocery-add-wrap">
-      <div class="grocery-add">
-        <input id="grocery-title" placeholder="Add item…" autofocus autocomplete="off">
-        <button id="grocery-add" aria-label="Add grocery item"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-      </div>
-      <div class="grocery-secondary-btns">
-        <button type="button" id="grocery-voice-btn" class="grocery-voice-btn" title="Speak to add items">🎤 Voice</button>
-        <button type="button" id="grocery-scan-btn" class="grocery-voice-btn" title="Scan barcode or photo">📷 Scan</button>
-        <input type="file" id="grocery-scan-input" accept="image/*" capture="environment" style="display:none">
-      </div>
-      <div id="grocery-suggestions" class="grocery-suggestions" hidden></div>
-      </div>
       ${recentItems.length ? recentGroceryHtml(recentItems) : ''}
       <div class="grocery-actions">
-        <button id="copy-grocery">Copy Walmart list</button>
-            <button id="clear-grocery">Clear checked</button>
+        <button id="copy-grocery">Copy list</button>
+        <button id="clear-grocery">Clear checked</button>
       </div>
       <textarea id="grocery-copy" readonly>${escapeHtml(listText)}</textarea>
     </section>
-    ${items.length ? Object.entries(grouped).map(([category, group]) => groceryGroupHtml(category, group)).join('') : '<div class="empty-state">Grocery list is empty. Add milk, bananas, or walmart 2 paper towels.</div>'}`;
+    ${items.length ? Object.entries(grouped).map(([category, group]) => groceryGroupHtml(category, group)).join('') : '<div class="empty-state">Grocery list is empty. Add milk, bananas, or walmart 2 paper towels.</div>'}
+    <div class="grocery-fab-wrap">
+      <p class="grocery-fab-hint">Tap to type · Hold for voice</p>
+      <button id="grocery-fab" class="grocery-fab-btn" aria-label="Add grocery item" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add new item
+      </button>
+    </div>
+    <div id="grocery-add-sheet" class="grocery-add-sheet">
+      <div class="grocery-sheet-row">
+        <input id="grocery-title" placeholder="Add item…" autocomplete="off">
+        <button id="grocery-scan-btn" class="grocery-sheet-icon-btn" type="button" title="Scan photo">📷</button>
+        <button id="grocery-add" class="grocery-sheet-submit" type="button" aria-label="Add item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><polyline points="5 12 12 5 19 12"/><line x1="12" y1="5" x2="12" y2="19"/></svg>
+        </button>
+      </div>
+      <input type="file" id="grocery-scan-input" accept="image/*" capture="environment" style="display:none">
+      <div id="grocery-suggestions" class="grocery-suggestions" hidden></div>
+    </div>`;
   $('#grocery-add').onclick = addGroceryFromInput;
-  $('#grocery-title').addEventListener('keydown', e => { if (e.key === 'Enter') addGroceryFromInput(); });
-  setupGroceryVoiceInput();
+  $('#grocery-title').addEventListener('keydown', e => { if (e.key === 'Enter') addGroceryFromInput(); if (e.key === 'Escape') closeGrocerySheet(); });
+  setupGroceryFab();
   setupGroceryScanInput();
   setupGroceryAutocomplete();
   $('#clear-grocery').onclick = async () => { await api('/api/grocery/clear-checked', { method: 'POST' }); renderGrocery(); };
@@ -2114,6 +2206,7 @@ async function addGroceryFromInput() {
     await api('/api/quick-add', { method: 'POST', body: JSON.stringify({ text: text.match(/^(walmart|grocery)\s+/i) ? text : `grocery ${text}`, source: 'app' }) });
   }
   input.value = '';
+  closeGrocerySheet();
   renderGrocery();
 }
 
